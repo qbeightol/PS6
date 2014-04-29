@@ -15,11 +15,15 @@ let init_game () = game_of_state (gen_initial_state())
 
 
 let handle_move g m = 
-    (*I'm guessing we'll wnat to keep track of the request that m corresponds to.
+    (*I'm guessing we'll want to keep track of the request that m corresponds to.
     Maybe that's in turn/next*)
     match m with
-    | InitialMove l ->
+    | InitialMove l -> (*Check for valid placement. If the placement is valid, 
+        update the map. Otherwise, insert a minimum viable move?*)
     | RobberMove r ->
+        match r with (p * c_opt) -> (*Assuming p is a valid location, change 
+        the board's robber location to p. Then remove a random resource from
+        the player with color c_opt and give it to the active player*)
     | DiscardMove c -> (*I assume this involves subtracting c from the player
         who made the discard move. I'm not quite sure how you tell which player
         discarded, though*)
@@ -29,9 +33,12 @@ let handle_move g m =
         begin
             match a with
             | MaritimeTrade mt -> 
-                match mt with (r_sold, r_bought) ->
+                match mt with (r_sold, r_bought) -> (*check that the player can
+                    conduct this trade. If so, take away r_sold from the active 
+                    player and give them r_bought.*)
             | DomesticTrade t ->
                 match t with (other_player, active_player_cost, other_player_cost) ->
+                (*Send a trade request to other player*)
             | BuyBuild b ->
                 begin
                     match b with
