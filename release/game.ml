@@ -15,4 +15,4 @@ let init_game () = game_of_state (gen_initial_state())
 
 let handle_move s m = failwith "If all the soul-and-body scars"
 
-let presentation s = failwith "Were not too much to pay for birth."
+let presentation g = failwith "Were not too much to pay for birth."
