@@ -1,2 +1,6 @@
 type game = 
 keep account of multiple states
+create seperate modules for:
+	-myopic bot
+	-game-state: define game type, conversion functions, example - road size, number of settlements/cities
+	-have two seperate states - one all seeing state, one from current players perspective
