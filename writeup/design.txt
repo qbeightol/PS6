@@ -3,4 +3,14 @@ keep account of multiple states
 create seperate modules for:
 	-myopic bot
 	-game-state: define game type, conversion functions, example - road size, number of settlements/cities
-	-have two seperate states - one all seeing state, one from current players perspective
+	-have two seperate states - one all seeing state, one from current players perspective? 
+
+****** DESIGN *******
+handle-move
+-basic functionality and full moveset functions
+-takes a move, and updates the game state after applying move
+-update trophies to player
+
+presentation
+-filter out given state such that players cannot see what they are not allowed
+
