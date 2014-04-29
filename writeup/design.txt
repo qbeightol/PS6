@@ -1,0 +1,2 @@
+type game = 
+keep account of multiple states
