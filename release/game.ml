@@ -18,6 +18,16 @@ let init_game () = game_of_state (gen_initial_state())
 (*Change to game_of_state(gen_random_initial_state ())*)
 
 let handle_move g m = 
+	(* checks to see if m is a valid move, returns true/false *)
+	let validmove m = 
+		match m with 
+		| InitialMove (p1, p2) -> 
+				(List.mem p2 (adjacent_points p1)) && (List.mem p1 (adjacent_points p2))
+		| RobberMove (p, c) -> (p >= 0) && (p < 19)
+		| DiscardMove (b, w, o, g, l) -> 
+		| TradeResponse b -> 
+		| Action a -> 
+
   (*I'm guessing we'll want to keep track of the request that m corresponds to.
   Maybe that's in turn/next*)
   match m with
