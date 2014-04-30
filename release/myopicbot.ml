@@ -84,8 +84,9 @@ module Bot = functor (S : Soul) -> struct
     I might return a tuple of floats. 
 
     yeah, floats seem like a good idea. That way I can have the numbers
-    approximately represent the number of victory points each player has*)
-  let eval_state (g:game) : (int * int * int * int) =
+    approximately represent the number of victory points each player has
+  *)
+  let eval_state (s : state) : (int * int * int * int) =
     failwith "not implemented"
 
 
