@@ -4,7 +4,9 @@ open Util
 open Print
 
 
-type game = state (*Is anything else worth including/calculating?*)
+type game = state
+
+(*Is anything else worth including/calculating?*)
 
 let state_of_game g = g
 let game_of_state s = s
@@ -14,12 +16,18 @@ let init_game () = game_of_state (gen_initial_state())
     (*Change to game_of_state(gen_random_initial_state ())*)
 
 
-let handle_move g m = 
+let handle_move (b, p, turn, (c, req)) m = 
     (*I'm guessing we'll wnat to keep track of the request that m corresponds to.
     Maybe that's in turn/next*)
+		
+	let rob_helper (piece, color) = 
+		match color with 
+		| None -> 
+		| Some x -> ( , p, turn, (color, ))
+
     match m with
     | InitialMove l ->
-    | RobberMove r ->
+    | RobberMove r -> rob_helper r
     | DiscardMove c -> (*I assume this involves subtracting c from the player
         who made the discard move. I'm not quite sure how you tell which player
         discarded, though*)

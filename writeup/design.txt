@@ -14,3 +14,4 @@ handle-move
 presentation
 -filter out given state such that players cannot see what they are not allowed
 
+make game type a record, flatten all elements in state
