@@ -43,15 +43,15 @@ let handle_move g m =
   | InitialMove l -> failwith "not implemented" 
     (*Check for valid placement. If the placement is valid, 
     update the map. Otherwise, insert a minimum viable move?*)
-  | RobberMove (p, c_opt) -> failwith "not implemented"
+  | RobberMove (p, c_opt) -> robber_helper (p, c_opt)
     (*Assuming p is a valid location, change 
     the board's robber location to p. Then remove a random resource from
     the player with color c_opt and give it to the active player*)
-  | DiscardMove c -> failwith "not implemented"
+  | DiscardMove c -> discard_helper c
 (*     I assume this involves subtracting c from the player
     who made the discard move. I'm not quite sure how you tell which player
     discarded, though *)
-  | TradeResponse b -> failwith "not implemented"
+  | TradeResponse b -> trade_helper b
     (*If true, then conduct the trade (and don't conduct
     the trade if false). Then return control to the active player.*)
   | Action a ->
@@ -60,33 +60,17 @@ let handle_move g m =
       | RollDice -> failwith "not implemented"
         (*Generate a random dice roll. If seven, handle discards, then ask the
         active player where they want to place the robber*)
-      | MaritimeTrade (r_sold, r_bought) -> failwith "not implemented"
+      | MaritimeTrade x -> maritime_helper x
         (*check that the player can
         conduct this trade. If so, take away r_sold from the active 
         player and give them r_bought.*)
-      | DomesticTrade (other_player, active_player_cost, other_player_cost) ->
-        failwith "not implemented"
+      | DomesticTrade x -> domestic_helper x
         (*Send a trade request to other player*)
-      | BuyBuild b ->
-        begin
-          match b with
-          |BuildRoad rd -> failwith "not implemented"
-          | BuildTown pt -> failwith "not implemented"
-          | BuildCity pt -> failwith "not implemented"
-          | BuildCard -> failwith "not implemented"
-        end
-      | PlayCard pc ->
-        begin
-          match pc with
-          | PlayKnight r -> failwith "not implemented"
-          | PlayRoadBuilding (rd, rd_o) -> failwith "not implemented"
-          | PlayYearOfPlenty (r, r_o) -> failwith "not implemented"
-          | PlayMonopoly r -> failwith "not implemented"
-        end 
+      | BuyBuild b -> buyBuild_helper b
+      | PlayCard pc -> playCard_helper pc
       | EndTurn -> failwith "not implemented"
         (*Pass control to the next player*)
     end
-
-
+    
 
 let presentation g = failwith "Were not too much to pay for birth."

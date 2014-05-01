@@ -154,3 +154,44 @@ let to_player_tuple (plist: player list) : (pr * pr * pr * pr) =
     in 
     List.fold_right f plist (empty_pr, empty_pr, empty_pr, empty_pr) 
   | _ -> failwith "invalid player list"
+
+	(* change 
+    the board's robber location to p. Then remove a random resource from
+    the player with color c_opt and give it to the active player *)
+let robber_helper (p, c) = failwith "not implemented"
+
+(*  I assume this involves subtracting c from the player
+    who made the discard move. I'm not quite sure how you tell which player
+    discarded, though *)
+let discard_helper c = failwith "not implemented"
+
+(*If true, then conduct the trade (and don't conduct
+    the trade if false). Then return control to the active player.*)
+let trade_helper g b = failwith "not implemented"
+
+(*check that the player can
+        conduct this trade. If so, take away r_sold from the active 
+        player and give them r_bought.*)
+let maritime_helper (r_sold, r_bought) = failwith "not implemented"
+
+(*Send a trade request to other player*)
+let domestic_helper (other_player, active_player_cost, other_player_cost) =
+        failwith "not implemented"
+
+let buyBuild_helper b =
+  begin
+    match b with
+    | BuildRoad rd -> failwith "not implemented"
+    | BuildTown pt -> failwith "not implemented"
+    | BuildCity pt -> failwith "not implemented"
+    | BuildCard -> failwith "not implemented"
+  end
+
+let playCard_helper pc =
+  begin
+    match pc with
+    | PlayKnight r -> failwith "not implemented"
+    | PlayRoadBuilding (rd, rd_o) -> failwith "not implemented"
+    | PlayYearOfPlenty (r, r_o) -> failwith "not implemented"
+    | PlayMonopoly r -> failwith "not implemented"
+  end 
