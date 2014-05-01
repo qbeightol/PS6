@@ -6,7 +6,7 @@ open GameType
 
 
 (* checks to see if m is a valid move, returns true/false *)
-let validmove m = 
+let validmove g m = 
 	match snd (g.next) with
 	| InitialRequest -> 
 		if m = InitialMove (p1, p2) 
