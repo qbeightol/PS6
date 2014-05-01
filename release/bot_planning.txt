@@ -1,0 +1,46 @@
+
+
+State Evaluation:
+  * type state = 
+    (map * structs * deck * discard * robber) * player list * turn * next
+    + map: I probably don't need to assign any value to the map, since it
+      doesn't change throughout the game. But I will want to use the map
+      (along with the robber's position) when evaluating structures.
+    + settlements (part of structures)
+      - All the settlements are stored in a list so it might make
+        sense to do a fold operation (the accumulator would probably be a tuple
+        --maybe a record, though, that'll be a pain to rebuild--consisting of
+        the number of intersections processed--which tells you where the the 
+        next interesection is located on the board--along with scores for each
+        player).
+      - The fold function might look at a particular settlement (and reference
+        the accumulator to find its location) and figure out whether its been
+        developed. If not, you can move on to the next entry. Otherwise, look
+        at the color, the type of settlement, and the adjacent tiles (call
+        adjacent_pieces on the accumulator [well, sort of--you might need to
+        do some additional computation]). The color dictates who will receive
+        points for the settlement, while the settlement type and adjacent tiles
+        will determine its value.
+      - settlement evaluation: I think the easiest thing to do is automatically
+        add one point if the settlement is a Town and two points if the 
+        settlement is a City. Then you can add 
+          (roll_probability 
+           *. average_remaining_turns *. value_of_resource_produced 
+           *. amount_of_resources_produced) to the score. 
+        + As a side note, I might not need to use average_remaining_turns. I
+          might be able to calculate max_turns - completed_turns.
+
+Random Ideas:
+  * It may be worthwhile to only play knights when a robber is next to one of
+    your cities.
+    + Of course, if you can earn the largest army trophy (which in turn lets 
+      you win the game), its worthwhile to play the knight card then, too.
+
+  * Try to place settlements on interesections with a total "dot count" of 
+    11-13 (i.e. place the settlement so that the tiles surrounding it add up
+    to 11-13).
+    + A variety of resources matters, too.
+
+  * If you draw a monopoly card, it might make sense to do a bunch of trades
+    where you give up only one type of resource. Then you can recalim all of
+    those resources using the monopoly card. 
