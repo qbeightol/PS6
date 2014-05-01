@@ -70,17 +70,10 @@ let handle_move g m =
       | BuyBuild b ->
         begin
           match b with
-<<<<<<< HEAD
-          | BuildRoad rd -> 
-          | BuildTown pt -> 
-          | BuildCity pt ->
-          | BuildCard ->
-=======
           |BuildRoad rd -> failwith "not implemented"
           | BuildTown pt -> failwith "not implemented"
           | BuildCity pt -> failwith "not implemented"
           | BuildCard -> failwith "not implemented"
->>>>>>> 011671a2fb1fb10d9f530c5f7954ebd70790c653
         end
       | PlayCard pc ->
         begin
