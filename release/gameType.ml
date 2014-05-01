@@ -32,7 +32,7 @@ type playerrecord = {
   cards: cards;
   knights: int;
   longestroad: bool;
-  largestarmy: bool;
+  largestarmy: bool
 }
 
 type nextrecord = {

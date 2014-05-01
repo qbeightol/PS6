@@ -20,13 +20,44 @@ let init_game () = game_of_state (gen_initial_state())
 let handle_move g m = 
 	(* checks to see if m is a valid move, returns true/false *)
 	let validmove m = 
-		match m with 
-		| InitialMove (p1, p2) -> 
-				(List.mem p2 (adjacent_points p1)) && (List.mem p1 (adjacent_points p2))
-		| RobberMove (p, c) -> (p >= 0) && (p < 19)
-		| DiscardMove (b, w, o, g, l) -> 
-		| TradeResponse b -> 
-		| Action a -> 
+    match snd (g.next) with
+    | InitialRequest -> 
+        if m = InitialMove (p1, p2) 
+        then (List.mem p2 (adjacent_points p1)) && (List.mem p1 (adjacent_points p2))
+        else false
+    | RobberRequest ->
+        if m = RobberMove (p, c)
+        then (p >= 0) && (p < 19)
+        else false
+    | DiscardRequest ->
+        if m = DiscardMove (b, w, o, g, l) 
+        then let c = (b + w + o + g + l) in
+          (((g.inventory.bricks + g.inventory.wool + g.inventory.ore + 
+          g.inventory.grain + g.inventory.lumber) / 2) = c) && (c > 3)
+        else false
+    | TradeRequest ->
+        if m = TradeResponse b 
+        then 
+          begin 
+            match g.turn.pendingtrade with
+            | None -> false
+            | Some (id, cost1, cost2) -> (id.inventory = cost2) && (g.inventory = cost1)
+          end
+        else false
+    | ActionRequest -> 
+        if m = Action a 
+        then 
+          begin
+            match a with
+            | RollDice -> (g.turn.diceRolled = None)
+            | MaritimeTrade mt -> 
+            | DomesticTrade dt ->
+            | BuyBuild b ->
+            | Playcard pc ->
+            | EndTurn -> (g.turn.diceRolled <> None)
+          end
+        else false
+		
 
   (*I'm guessing we'll want to keep track of the request that m corresponds to.
   Maybe that's in turn/next*)
