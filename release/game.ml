@@ -48,9 +48,9 @@ let handle_move g m =
     the board's robber location to p. Then remove a random resource from
     the player with color c_opt and give it to the active player*)
   | DiscardMove c -> failwith "not implemented"
-    (*I assume this involves subtracting c from the player
+(*     I assume this involves subtracting c from the player
     who made the discard move. I'm not quite sure how you tell which player
-    discarded, though*)
+    discarded, though *)
   | TradeResponse b -> failwith "not implemented"
     (*If true, then conduct the trade (and don't conduct
     the trade if false). Then return control to the active player.*)

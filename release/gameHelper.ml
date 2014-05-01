@@ -6,70 +6,104 @@ open GameType
 
 
 (* checks to see if m is a valid move, returns true/false *)
-let validmove m = 
+let validmove g m = 
 	match snd (g.next) with
 	| InitialRequest -> 
-		if m = InitialMove (p1, p2) 
-		then (List.mem p2 (adjacent_points p1)) && (List.mem p1 (adjacent_points p2))
-		else false
+		begin
+			match m with 
+			| InitialMove (p1, p2) ->
+				(List.mem p2 (adjacent_points p1)) && (List.mem p1 (adjacent_points p2))
+			| _ -> false
+		end
 	| RobberRequest ->
-		if m = RobberMove (p, c)
-		then (p >= 0) && (p < 19)
-		else false
-	| DiscardRequest ->
-		if m = DiscardMove (b, w, o, g, l) 
-		then let c = (b + w + o + g + l) in
-		  (((g.inventory.bricks + g.inventory.wool + g.inventory.ore + 
-		  g.inventory.grain + g.inventory.lumber) / 2) = c) && (c > 3)
-		else false
+		begin
+			match m with
+			| RobberMove (p, c) -> (p >= 0) && (p < 19)
+			| _ -> false
+		end
+	| DiscardRequest -> 
+		begin
+			match m with
+			| DiscardMove c ->
+				begin
+					let c1 = sum_cost c in
+					match g.turn.active with
+					| Blue -> ((g.blue.inventory.bricks + g.blue.inventory.wool + 
+							g.blue.inventory.lumber + g.blue.inventory.ore + 
+							g.blue.inventory.grain)/2 = c1) && (c1 > 3)
+					| Red -> ((g.red.inventory.bricks + g.red.inventory.wool + 
+							g.red.inventory.lumber + g.red.inventory.ore + 
+							g.red.inventory.grain)/2 = c1) && (c1 > 3)
+					| Orange -> ((g.orange.inventory.bricks + g.orange.inventory.wool + 
+							g.orange.inventory.lumber + g.orange.inventory.ore + 
+							g.orange.inventory.grain)/2 = c1) && (c1 > 3)
+					| White -> ((g.white.inventory.bricks + g.white.inventory.wool + 
+							g.white.inventory.lumber + g.white.inventory.ore + 
+							g.white.inventory.grain)/2 = c1) && (c1 > 3)
+			  end
+			| _ -> false
+		end
 	| TradeRequest ->
-		if m = TradeResponse b 
-		then 
-		  begin 
-		    match g.turn.pendingtrade with
-		    | None -> false
-		    | Some (id, cost1, cost2) -> 
-		      (id.inventory.bricks >= cost2.bricks) &&
-		      (id.inventory.wool >= cost2.wool) &&
-		      (id.inventory.ore >= cost2.ore) &&
-		      (id.inventory.grain >= cost2.grain) &&
-		      (id.inventory.lumber >= cost2.lumber) &&
-		      (g.inventory.bricks >= cost1.bricks) &&
-		      (g.inventory.wool >= cost1.wool) &&
-		      (g.inventory.ore >= cost1.ore) &&
-		      (g.inventory.grain >= cost1.grain) &&
-		      (g.inventory.lumber >= cost1.lumber)
-		  end
-		else false
+		begin
+			match m with
+			| TradeResponse b ->
+			  begin 
+			    match g.turn.pendingtrade with
+			    | None -> false
+			    | Some (id, (b, w, o, g, l), (b2, w2, o2, g2, l2)) -> failwith "doesnt type check"
+			    (* begin
+			      match id, g.turn.active with 
+ 			      | Blue,Red -> 
+			      		(g.blue.inventory.bricks >= b2) && (g.red.inventory.bricks >= b1)
+			      		(g.blue.inventory.wool >= w2) && (g.red.inventory.wool >= w1)
+			      		(g.blue.inventory.ore >= o2) && (g.red.inventory.ore >= o1)
+			      		(g.blue.inventory.grain >= g2) && (g.red.inventory.grain >= g1)
+			      		(g.blue.inventory.lumber >= l2) && (g.red.inventory.lumber >= l1)
+			      	| Red,Blue ->
+			      		(g.red.inventory.bricks >= b2) && (g.blue.inventory.bricks >= b1)
+			      		(g.red.inventory.wool >= w2) && (g.blue.inventory.wool >= w1)
+			      		(g.red.inventory.ore >= o2) && (g.blue.inventory.ore >= o1)
+			      		(g.red.inventory.grain >= g2) && (g.blue.inventory.grain >= g1)
+			      		(g.red.inventory.lumber >= l2) && (g.blue.inventory.lumber >= l1)
+			      | _ -> failwith "error"
+			    end *)
+			  end
+			| _ -> false
+		end
 	| ActionRequest -> 
-		if m = Action a 
-		then 
-		  begin
-		    match a with
-		    | RollDice -> (g.turn.diceRolled = None)
-		    | MaritimeTrade (sold, bought) -> failwith "not yet implemented"
-		    | DomesticTrade (id, cost1, cost2) -> 
-		        (id.inventory.bricks >= cost2.bricks) &&
-		        (id.inventory.wool >= cost2.wool) &&
-		        (id.inventory.ore >= cost2.ore) &&
-		        (id.inventory.grain >= cost2.grain) &&
-		        (id.inventory.lumber >= cost2.lumber) &&
-		        (g.inventory.bricks >= cost1.bricks) &&
-		        (g.inventory.wool >= cost1.wool) &&
-		        (g.inventory.ore >= cost1.ore) &&
-		        (g.inventory.grain >= cost1.grain) &&
-		        (g.inventory.lumber >= cost1.lumber)
-		    | BuyBuild b -> 
-		        let c = (cost_of_build b) in
-		        (g.inventory.bricks >= c.bricks) &&
-		        (g.inventory.wool >= c.wool) &&
-		        (g.inventory.ore >= c.ore) &&
-		        (g.inventory.grain >= c.grain) &&
-		        (g.inventory.lumber >= c.lumber)
-		    | Playcard pc -> if (pc <> PlayKnight r) then (g.turn.diceRolled <> None)
-		    | EndTurn -> (g.turn.diceRolled <> None)
-		  end
-		else false
+		begin
+			match m with
+			| Action a ->
+			  begin
+			    match a with
+			    | RollDice -> (g.turn.dicerolled = None)
+			    | MaritimeTrade (sold, bought) -> failwith "doesnt type check"
+(* 			    | DomesticTrade (id, cost1, cost2) -> 
+			        (id.inventory.bricks >= cost2.bricks) &&
+			        (id.inventory.wool >= cost2.wool) &&
+			        (id.inventory.ore >= cost2.ore) &&
+			        (id.inventory.grain >= cost2.grain) &&
+			        (id.inventory.lumber >= cost2.lumber) &&
+			        (g.inventory.bricks >= cost1.bricks) &&
+			        (g.inventory.wool >= cost1.wool) &&
+			        (g.inventory.ore >= cost1.ore) &&
+			        (g.inventory.grain >= cost1.grain) &&
+			        (g.inventory.lumber >= cost1.lumber)
+			    | BuyBuild b -> 
+			        let c = (cost_of_build b) in
+			        (g.inventory.bricks >= c.bricks) &&
+			        (g.inventory.wool >= c.wool) &&
+			        (g.inventory.ore >= c.ore) &&
+			        (g.inventory.grain >= c.grain) &&
+			        (g.inventory.lumber >= c.lumber) *)
+			    | PlayCard pc -> (match pc with 
+			  		| PlayKnight r -> true
+			  		| _ -> (g.turn.dicerolled <> None))
+			    | EndTurn -> (g.turn.dicerolled <> None)
+			    | _ -> false
+			  end
+			| _ -> false
+		end
 
 
 (*a player record with no resources, cards, knights, nor trophies*)
