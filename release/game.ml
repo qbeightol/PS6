@@ -9,7 +9,18 @@ open GameHelper
 
 type game = t (*can I remove this declaration, or will the compiler freak out?*)
 
-let state_of_game g = failwith "not implemented"
+let state_of_game g =
+  let hexes = g.board.map.hexes in
+  let ports = g.board.map.ports in
+  let structures = (g.board.structures.settlements,g.board.structures.roads) in
+  let deck = g.board.deck in
+  let discard = g.board.discard in
+  let robber = g.board.robber in
+  let plist = to_player_list [g.blue; g.red; g.orange; g.white] in
+  let turn = g.turn in
+  let next = g.next in
+    (((hexes, ports), structures, deck, discard, robber), plist, turn, next)
+
 let game_of_state s =
   let ((map, structs, deck, discard, robber), plist, turn, next) = s in
   let (hexes, ports) =  map in

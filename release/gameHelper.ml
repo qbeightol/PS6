@@ -125,9 +125,28 @@ let empty_pr =
 
 type pr = playerrecord
 
+let to_ht_tuple (p: pr) : (hand * trophies) =
+  let p_inv = p.inventory in
+  let inv = (p_inv.bricks, p_inv.wool, p_inv.ore, p_inv.grain, p_inv.lumber) in
+  ((inv, p.cards), (p.knights, p.longestroad, p.largestarmy))
+
+let to_player_list (players : pr list) : player list =
+  match players with
+  | [blue; red; orange; white] ->
+    let (bh, bt) = to_ht_tuple blue in
+    let (rh, rt) = to_ht_tuple red in
+    let (oh, ot) = to_ht_tuple orange in
+    let (wh, wt) = to_ht_tuple white in
+      [(Blue, bh, bt); (Red, rh, rt); (Orange, oh, ot); (White, wh, wt)]
+  | _ -> failwith "invalid player record list"
+
 let to_player_tuple (plist: player list) : (pr * pr * pr * pr) =
-  match plist with
-  | _::_::_::[_] ->
+  (*qeb2: I'm not a huge fan of this implementation. It really ought
+  to check whether the players have four distinct colors. Maybe I can do
+  something clever with pattern matching to check that all four players are
+  present.*)
+  if List.length plist <> 4 then failwith "invalid player list"
+  else 
     let f (color, (inventory, cards), (k, lr, la)) (blu, red, org, wht) =
       let (b, w, o, g, l) = inventory in 
       let new_inventory = 
@@ -195,3 +214,4 @@ let playCard_helper pc =
     | PlayYearOfPlenty (r, r_o) -> failwith "not implemented"
     | PlayMonopoly r -> failwith "not implemented"
   end 
+
