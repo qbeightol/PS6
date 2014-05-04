@@ -3,6 +3,7 @@ open Constant
 open Util
 open Print
 open GameType
+open MoreUtil
 
 
 (* checks to see if m is a valid move, returns true/false *)
@@ -11,8 +12,7 @@ let validmove g m =
 	| InitialRequest -> 
 		begin
 			match m with 
-			| InitialMove (p1, p2) ->
-				(List.mem p2 (adjacent_points p1)) && (List.mem p1 (adjacent_points p2))
+			| InitialMove l -> List.exists ((=) l) (valid_initial_moves g)
 			| _ -> false
 		end
 	| RobberRequest ->
@@ -50,23 +50,23 @@ let validmove g m =
 			  begin 
 			    match g.turn.pendingtrade with
 			    | None -> false
-			    | Some (id, (b, w, o, g, l), (b2, w2, o2, g2, l2)) -> failwith "doesnt type check"
-			    (* begin
-			      match id, g.turn.active with 
+			    | Some (id, (b1, w1, o1, g1, l1), (b2, w2, o2, g2, l2)) ->
+			      begin
+			      match id, (g.turn.active) with 
  			      | Blue,Red -> 
 			      		(g.blue.inventory.bricks >= b2) && (g.red.inventory.bricks >= b1)
-			      		(g.blue.inventory.wool >= w2) && (g.red.inventory.wool >= w1)
-			      		(g.blue.inventory.ore >= o2) && (g.red.inventory.ore >= o1)
-			      		(g.blue.inventory.grain >= g2) && (g.red.inventory.grain >= g1)
-			      		(g.blue.inventory.lumber >= l2) && (g.red.inventory.lumber >= l1)
-			      	| Red,Blue ->
+			      		&& (g.blue.inventory.wool >= w2) && (g.red.inventory.wool >= w1)
+			      		&& (g.blue.inventory.ore >= o2) && (g.red.inventory.ore >= o1)
+			      		&& (g.blue.inventory.grain >= g2) && (g.red.inventory.grain >= g1)
+			      		&& (g.blue.inventory.lumber >= l2) && (g.red.inventory.lumber >= l1)
+			      | Red,Blue ->
 			      		(g.red.inventory.bricks >= b2) && (g.blue.inventory.bricks >= b1)
-			      		(g.red.inventory.wool >= w2) && (g.blue.inventory.wool >= w1)
-			      		(g.red.inventory.ore >= o2) && (g.blue.inventory.ore >= o1)
-			      		(g.red.inventory.grain >= g2) && (g.blue.inventory.grain >= g1)
-			      		(g.red.inventory.lumber >= l2) && (g.blue.inventory.lumber >= l1)
+			      		&& (g.red.inventory.wool >= w2) && (g.blue.inventory.wool >= w1)
+			      		&& (g.red.inventory.ore >= o2) && (g.blue.inventory.ore >= o1)
+			      		&& (g.red.inventory.grain >= g2) && (g.blue.inventory.grain >= g1)
+			      		&& (g.red.inventory.lumber >= l2) && (g.blue.inventory.lumber >= l1)
 			      | _ -> failwith "error"
-			    end *)
+			      end
 			  end
 			| _ -> false
 		end

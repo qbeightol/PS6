@@ -52,10 +52,17 @@ let handle_move g m =
   Maybe that's in turn/next*)
   match m with
   | InitialMove l -> failwith "not implemented" 
-    (*Check for valid placement. If the placement is valid, update the map. 
-    Otherwise, make a random valid move. To make the random move you could
-    call
-    *)
+
+    (*actually, never mind-- I ought to move this code to the body of validmove*)
+    (*
+    let valid_moves = valid_inital_moves g in
+      if (List.mem) ((=) l) valid_moves then
+        (*update game state*)
+      else 
+        let move = get_some (pick_random valid_moves) in
+          (*update game state*)
+      *)
+
   | RobberMove (p, c_opt) -> failwith "not implemented"
     (*Assuming p is a valid location, change 
     the board's robber location to p. Then remove a random resource from
