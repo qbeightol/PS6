@@ -187,6 +187,9 @@ let discard_helper c = failwith "not implemented"
 (*If true, then conduct the trade (and don't conduct
     the trade if false). Then return control to the active player.*)
 let trade_helper g b = failwith "not implemented"
+	match b with
+	| false -> (* return g with new action request *)
+	| true -> (* return g with players items exchanged and new action request *)
 
 (*check that the player can
         conduct this trade. If so, take away r_sold from the active 
