@@ -4,6 +4,7 @@ open Util
 open Print
 open GameType
 open GameHelper
+open MoreUtil
 
 
 
@@ -21,8 +22,7 @@ let state_of_game g =
   let next = g.next in
     (((hexes, ports), structures, deck, discard, robber), plist, turn, next)
 
-let game_of_state s =
-  let ((map, structs, deck, discard, robber), plist, turn, next) = s in
+let game_of_state ((map, structs, deck, discard, robber), plist, turn, next) =
   let (hexes, ports) =  map in
   let (settlements, roads) = structs in
   let board = 
@@ -52,8 +52,10 @@ let handle_move g m =
   Maybe that's in turn/next*)
   match m with
   | InitialMove l -> failwith "not implemented" 
-    (*Check for valid placement. If the placement is valid, 
-    update the map. Otherwise, insert a minimum viable move?*)
+    (*Check for valid placement. If the placement is valid, update the map. 
+    Otherwise, make a random valid move. To make the random move you could
+    call
+    *)
   | RobberMove (p, c_opt) -> failwith "not implemented"
     (*Assuming p is a valid location, change 
     the board's robber location to p. Then remove a random resource from
