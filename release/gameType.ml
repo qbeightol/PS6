@@ -19,20 +19,21 @@ type boardrecord = {
   robber: piece
 }
 
-type costrecord = {
-  bricks: int;
-  wool: int;
-  ore: int;
-  grain: int;
-  lumber: int
+type resourcerecord = {
+  mutable bricks: int;
+  mutable wool: int;
+  mutable ore: int;
+  mutable grain: int;
+  mutable lumber: int
 }
 
 type playerrecord = {
-  inventory: costrecord;
+  inventory: resourcerecord;
   cards: cards;
   knights: int;
   longestroad: bool;
-  largestarmy: bool
+  largestarmy: bool;
+  ratio: resourcerecord
 }
 
 type nextrecord = {

@@ -9,17 +9,17 @@ open MoreUtil
 (* checks to see if m is a valid move, returns true/false *)
 let validmove g m = 
 
-let valid_trade_helper g (id, cost1, cost2) = 
-	let rec_to_tuple r = (r.bricks, r.wool, r.ore, r.grain, r.lumber) in
-	let inv g c = 
-		match c with 
-		| Blue -> rec_to_tuple g.blue.inventory
-		| Red -> rec_to_tuple g.red.inventory
-		| Orange -> rec_to_tuple g.orange.inventory
-		| White -> rec_to_tuple g.white.inventory in
-	let f_or_t (b1, b2, b3, b4, b5) = b1 && b2 && b3 && b4 && b5 in
-	let owns g c t = f_or_t (map_cost2 (>=) (inv g c) t) in
-	(owns g g.turn.active cost1) && (owns g id cost2) in
+	let valid_trade_helper g (id, cost1, cost2) = 
+		let rec_to_tuple r = (r.bricks, r.wool, r.ore, r.grain, r.lumber) in
+		let inv g c = 
+			match c with 
+			| Blue -> rec_to_tuple g.blue.inventory
+			| Red -> rec_to_tuple g.red.inventory
+			| Orange -> rec_to_tuple g.orange.inventory
+			| White -> rec_to_tuple g.white.inventory in
+		let f_or_t (b1, b2, b3, b4, b5) = b1 && b2 && b3 && b4 && b5 in
+		let owns g c t = f_or_t (map_cost2 (>=) (inv g c) t) in
+		(owns g g.turn.active cost1) && (owns g id cost2) in
 
 	match snd (g.next) with
 	| InitialRequest -> 
@@ -74,7 +74,23 @@ let valid_trade_helper g (id, cost1, cost2) =
 			  begin
 			    match a with
 			    | RollDice -> (g.turn.dicerolled = None)
-			    | MaritimeTrade (sold, bought) -> failwith "how do i know which ratio to use?"
+			    | MaritimeTrade (sold, bought) ->
+			    	begin 
+			    	  let player = 
+			    	  	match g.turn.active with
+				    	  | Blue -> g.blue
+				    	  | White -> g.white
+				    	  | Red -> g.red
+				    	  | Orange -> g.orange in
+			    		let ratio, owns = 
+			    			match sold with
+				    		| Wool -> player.ratio.wool, player.inventory.wool
+				    		| Brick -> player.ratio.bricks, player.inventory.bricks
+				    		| Ore -> player.ratio.ore, player.inventory.ore
+				    		| Grain -> player.ratio.grain, player.inventory.grain
+				    		| Lumber -> player.ratio.lumber, player.inventory.lumber in
+				    	(ratio <= owns)
+						end
 			    | DomesticTrade (id, cost1, cost2) -> 
 			    		if g.turn.tradesmade >= cNUM_TRADES_PER_TURN then false else
 			    		valid_trade_helper g (id, cost1, cost2)
@@ -103,7 +119,7 @@ let valid_trade_helper g (id, cost1, cost2) =
 
 (*a player record with no resources, cards, knights, nor trophies*)
 let empty_pr =
-  let inventory : costrecord = 
+  let inventory : resourcerecord = 
     { bricks = 0;
       wool = 0;
       ore = 0;
@@ -116,6 +132,7 @@ let empty_pr =
     knights = 0;
     longestroad = false;
     largestarmy = false;
+    ratio = inventory
   }
 
 type pr = playerrecord
@@ -144,20 +161,25 @@ let to_player_tuple (plist: player list) : (pr * pr * pr * pr) =
   else 
     let f (color, (inventory, cards), (k, lr, la)) (blu, red, org, wht) =
       let (b, w, o, g, l) = inventory in 
-      let new_inventory = 
-        { bricks = b;
-          wool = w;
-          ore = o;
-          grain = g;
-          lumber = l
-        }
-      in 
       let new_record = 
-        { inventory = new_inventory;
+        { inventory = 
+          { bricks = b;
+	          wool = w;
+	          ore = o;
+	          grain = g;
+	          lumber = l
+        	};
           cards = cards;
           knights = k;
           longestroad = lr;
-          largestarmy = la
+          largestarmy = la;
+          ratio = 
+	        { bricks = 4;
+	          wool = 4;
+	          ore = 4;
+	          grain = 4;
+	          lumber = 4
+	        }
         }
       in
       match color with
