@@ -85,9 +85,9 @@ let handle_move g m =
         match req with
         | InitialRequest -> 
           InitialMove (get_some (pick_random (valid_initial_moves g)))
-        | RobberRequest -> failwith "not implemented"
-        | DiscardRequest -> failwith "not implemented"
-        | TradeRequest -> failwith "not implemented"
+        | RobberMove x -> robber_helper g x
+        | DiscardMove c -> discard_helper g c
+        | TradeResponse b -> trade_helper g b
         | ActionRequest ->
           if is_none g.turn.dicerolled then Action(RollDice) 
                                        else Action(EndTurn)
@@ -98,21 +98,44 @@ let handle_move g m =
     | RobberMove x -> robber_helper g x
     | DiscardMove c -> discard_helper g c
     | TradeResponse b -> trade_helper g b
-    | Action RollDice -> failwith "not implemented"
-    | Action (MaritimeTrade x) -> maritime_helper g x
-    | Action (DomesticTrade x) -> domestic_helper g x
-    | Action (BuyBuild b) -> buyBuild_helper g b
-    | Action (PlayCard pc) -> playCard_helper g pc
-    | Action EndTurn ->
-        let next_p = next_turn g.turn.active in
-        let next_t = new_turn next_p in 
-          { board = g.board;
-            blue = g.blue;
-            red = g.red;
-            orange = g.orange;
-            white = g.white;
-            turn = next_t; 
-            next = (next_p, ActionRequest)}
+    | Action a ->
+      begin
+        match a with
+        | RollDice -> 
+          let roll = random_roll () in failwith "not implemented"
+          (*go through the tiles on the board and find the tiles whose rolls 
+          match the current roll. 
+
+          I'll probably want to use list_indices_of with the predicate
+          p (t, r) = (r = roll) 
+
+          then I'll want to find the players next to each tile, and reward
+          them the appropriate amound and kind of resources. 
+
+          So I'll probably want to use List.fold. And the accumulator probably
+          should be a list of tuples (at least, that'll make the construction 
+          and deconstruction of the data a little easier).
+
+          Go through the tiles
+          find the locations of possible nearby settlments using piece corners
+          figure out the re
+
+        *)
+        | MaritimeTrade x -> maritime_helper g x
+        | DomesticTrade x -> domestic_helper g x
+        | BuyBuild b -> buyBuild_helper g b
+        | PlayCard pc -> playCard_helper g pc
+        | EndTurn ->
+          let next_p = next_turn g.turn.active in
+          let next_t = new_turn next_p in 
+            { board = g.board;
+              blue = g.blue;
+              red = g.red;
+              orange = g.orange;
+              white = g.white;
+              turn = next_t; 
+              next = (next_p, ActionRequest)}
+      end
   in (None, updated_game) 
 
 
