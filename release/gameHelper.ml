@@ -8,6 +8,19 @@ open MoreUtil
 
 (* checks to see if m is a valid move, returns true/false *)
 let validmove g m = 
+
+let valid_trade_helper g (id, cost1, cost2) = 
+	let rec_to_tuple r = (r.bricks, r.wool, r.ore, r.grain, r.lumber) in
+	let inv g c = 
+		match c with 
+		| Blue -> rec_to_tuple g.blue.inventory
+		| Red -> rec_to_tuple g.red.inventory
+		| Orange -> rec_to_tuple g.orange.inventory
+		| White -> rec_to_tuple g.white.inventory in
+	let f_or_t (b1, b2, b3, b4, b5) = b1 && b2 && b3 && b4 && b5 in
+	let owns g c t = f_or_t (map_cost2 (>=) (inv g c) t) in
+	(owns g g.turn.active cost1) && (owns g id cost2) in
+
 	match snd (g.next) with
 	| InitialRequest -> 
 		begin
@@ -50,34 +63,7 @@ let validmove g m =
 			  begin 
 			    match g.turn.pendingtrade with
 			    | None -> false
-			    | Some (id, (b1, w1, o1, g1, l1), (b2, w2, o2, g2, l2)) ->
-			      begin
-			      match id, (g.turn.active) with 
-            (*qeb2 We might want to add a few helper functions here... 
-
-              How do these sound?
-
-              val inv: game -> color -> (int * int * int * int * int)
-              val owns: game -> color -> (int * int * int * int * int) -> bool
-
-              *owns should be easy to implement--just use map_cost2 with (>=)
-
-              Then you'd just need to check (owns g g.turn.active cost1) && (owns g id cost 2)
-            *)
- 			      | Blue,Red -> 
-			      		(g.blue.inventory.bricks >= b2) && (g.red.inventory.bricks >= b1)
-			      		&& (g.blue.inventory.wool >= w2) && (g.red.inventory.wool >= w1)
-			      		&& (g.blue.inventory.ore >= o2) && (g.red.inventory.ore >= o1)
-			      		&& (g.blue.inventory.grain >= g2) && (g.red.inventory.grain >= g1)
-			      		&& (g.blue.inventory.lumber >= l2) && (g.red.inventory.lumber >= l1)
-			      | Red,Blue ->
-			      		(g.red.inventory.bricks >= b2) && (g.blue.inventory.bricks >= b1)
-			      		&& (g.red.inventory.wool >= w2) && (g.blue.inventory.wool >= w1)
-			      		&& (g.red.inventory.ore >= o2) && (g.blue.inventory.ore >= o1)
-			      		&& (g.red.inventory.grain >= g2) && (g.blue.inventory.grain >= g1)
-			      		&& (g.red.inventory.lumber >= l2) && (g.blue.inventory.lumber >= l1)
-			      | _ -> failwith "error"
-			      end
+			    | Some (id, cost1, cost2) -> valid_trade_helper g (id, cost1, cost2)
 			  end
 			| _ -> false
 		end
@@ -88,30 +74,28 @@ let validmove g m =
 			  begin
 			    match a with
 			    | RollDice -> (g.turn.dicerolled = None)
-			    | MaritimeTrade (sold, bought) -> failwith "doesnt type check"
-(* 			    | DomesticTrade (id, cost1, cost2) -> 
-			        (id.inventory.bricks >= cost2.bricks) &&
-			        (id.inventory.wool >= cost2.wool) &&
-			        (id.inventory.ore >= cost2.ore) &&
-			        (id.inventory.grain >= cost2.grain) &&
-			        (id.inventory.lumber >= cost2.lumber) &&
-			        (g.inventory.bricks >= cost1.bricks) &&
-			        (g.inventory.wool >= cost1.wool) &&
-			        (g.inventory.ore >= cost1.ore) &&
-			        (g.inventory.grain >= cost1.grain) &&
-			        (g.inventory.lumber >= cost1.lumber)
+			    | MaritimeTrade (sold, bought) -> failwith "how do i know which ratio to use?"
+			    | DomesticTrade (id, cost1, cost2) -> 
+			    		if g.turn.tradesmade >= cNUM_TRADES_PER_TURN then false else
+			    		valid_trade_helper g (id, cost1, cost2)
 			    | BuyBuild b -> 
-			        let c = (cost_of_build b) in
-			        (g.inventory.bricks >= c.bricks) &&
-			        (g.inventory.wool >= c.wool) &&
-			        (g.inventory.ore >= c.ore) &&
-			        (g.inventory.grain >= c.grain) &&
-			        (g.inventory.lumber >= c.lumber) *)
+			    	begin
+			        let cost1 = (cost_of_build b) in
+			        let rec_to_tuple r = (r.bricks, r.wool, r.ore, r.grain, r.lumber) in
+							let inv g c = 
+								match c with 
+								| Blue -> rec_to_tuple g.blue.inventory
+								| Red -> rec_to_tuple g.red.inventory
+								| Orange -> rec_to_tuple g.orange.inventory
+								| White -> rec_to_tuple g.white.inventory in
+							let f_or_t (b1, b2, b3, b4, b5) = b1 && b2 && b3 && b4 && b5 in
+							let owns g c t = f_or_t (map_cost2 (>=) (inv g c) t) in
+							(owns g g.turn.active cost1) 
+						end
 			    | PlayCard pc -> (match pc with 
 			  		| PlayKnight r -> true
 			  		| _ -> (g.turn.dicerolled <> None))
 			    | EndTurn -> (g.turn.dicerolled <> None)
-			    | _ -> false
 			  end
 			| _ -> false
 		end
@@ -182,4 +166,48 @@ let to_player_tuple (plist: player list) : (pr * pr * pr * pr) =
       | Orange -> (blu, red, new_record, wht)
       | White -> (blu, red, org, new_record)
     in 
-    List.fold_right f plist (empty_pr, empty_pr, empty_pr, empty_pr)
+    List.fold_right f plist (empty_pr, empty_pr, empty_pr, empty_pr) 
+
+	(* change 
+    the board's robber location to p. Then remove a random resource from
+    the player with color c_opt and give it to the active player *)
+let robber_helper g (p, c_opt) = failwith "not implemented"
+
+(*  I assume this involves subtracting c from the player
+    who made the discard move. I'm not quite sure how you tell which player
+    discarded, though *)
+let discard_helper g c = failwith "not implemented"
+
+(*If true, then conduct the trade (and don't conduct
+    the trade if false). Then return control to the active player.*)
+let trade_helper g b =
+	match b with
+	| false -> (* return g with new action request *) failwith "error"
+	| true -> (* return g with players items exchanged and new action request *) failwith "error"
+
+(*check that the player can conduct this trade. If so, take away 
+r_sold from the active player and give them r_bought.*)
+let maritime_helper g (r_sold, r_bought) = failwith "not implemented"
+
+(*Send a trade request to other player*)
+let domestic_helper g (other_player, active_player_cost, other_player_cost) =
+        failwith "not implemented"
+
+let buyBuild_helper g b =
+  begin
+    match b with
+    | BuildRoad rd -> failwith "not implemented"
+    | BuildTown pt -> failwith "not implemented"
+    | BuildCity pt -> failwith "not implemented"
+    | BuildCard -> failwith "not implemented"
+  end
+
+let playCard_helper g pc =
+  begin
+    match pc with
+    | PlayKnight r -> failwith "not implemented"
+    | PlayRoadBuilding (rd, rd_o) -> failwith "not implemented"
+    | PlayYearOfPlenty (r, r_o) -> failwith "not implemented"
+    | PlayMonopoly r -> failwith "not implemented"
+  end 
+
