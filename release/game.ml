@@ -74,7 +74,27 @@ let handle_move g m =
     | Action a ->
       begin
         match a with
-        | RollDice -> failwith "not implemented"
+        | RollDice -> 
+          let roll = random_roll () in failwith "not implemented"
+          (*go through the tiles on the board and find the tiles whose rolls 
+          match the current roll. 
+
+          I'll probably want to use list_indices_of with the predicate
+          p (t, r) = (r = roll) 
+
+          then I'll want to find the players next to each tile, and reward
+          them the appropriate amound and kind of resources. 
+
+          So I'll probably want to use List.fold. And the accumulator probably
+          should be a list of tuples (at least, that'll make the construction 
+          and deconstruction of the data a little easier).
+
+          Go through the tiles
+          find the locations of possible nearby settlments using piece corners
+          figure out the re
+
+        *)
+          failwith "not implemented"
         | MaritimeTrade (r_sold, r_bought) -> failwith "not implemented"
         | DomesticTrade (other_player, active_player_cost, other_player_cost) ->
           failwith "not implemented"
