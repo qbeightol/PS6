@@ -54,7 +54,7 @@ let handle_move g m =
   | InitialMove l -> failwith "not implemented" 
     (*Check for valid placement. If the placement is valid, 
     update the map. Otherwise, insert a minimum viable move?*)
-  | RobberMove (p, c_opt) -> robber_helper (p, c_opt)
+  | RobberMove (p, c_opt) -> robber_helper g (p, c_opt)
 
     (*actually, never mind-- I ought to move this code to the body of validmove*)
     (*
@@ -69,11 +69,11 @@ let handle_move g m =
     (*Assuming p is a valid location, change 
     the board's robber location to p. Then remove a random resource from
     the player with color c_opt and give it to the active player*)
-  | DiscardMove c -> discard_helper c
+  | DiscardMove c -> discard_helper g c
 (*     I assume this involves subtracting c from the player
     who made the discard move. I'm not quite sure how you tell which player
     discarded, though *)
-  | TradeResponse b -> trade_helper b
+  | TradeResponse b -> trade_helper g b
     (*If true, then conduct the trade (and don't conduct
     the trade if false). Then return control to the active player.*)
   | Action a ->
@@ -82,14 +82,14 @@ let handle_move g m =
       | RollDice -> failwith "not implemented"
         (*Generate a random dice roll. If seven, handle discards, then ask the
         active player where they want to place the robber*)
-      | MaritimeTrade x -> maritime_helper x
+      | MaritimeTrade x -> maritime_helper g x
         (*check that the player can
         conduct this trade. If so, take away r_sold from the active 
         player and give them r_bought.*)
-      | DomesticTrade x -> domestic_helper x
+      | DomesticTrade x -> domestic_helper g x
         (*Send a trade request to other player*)
-      | BuyBuild b -> buyBuild_helper b
-      | PlayCard pc -> playCard_helper pc
+      | BuyBuild b -> buyBuild_helper g b
+      | PlayCard pc -> playCard_helper g pc
       | EndTurn -> failwith "not implemented"
         (*Pass control to the next player*)
     end
