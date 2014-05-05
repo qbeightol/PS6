@@ -169,12 +169,26 @@ module Bot = functor (S : Soul) -> struct
     let (c, r) = n in
     match r with
     | InitialRequest -> failwith "not implemented"
+      (*use the helper funtions in MoreUtil to create a list of valid moves.
+      Evaluate the resulting states, and choose a random best move*)
     | RobberRequest -> failwith "not implemented"
-    | DiscardRequest-> failwith "not implemented"
+      (*consider putting the robber on each tile, and stealing resources from
+      each possible player. Then choose a random move out of one of the "best
+      moves"*)
+    | DiscardRequest->
+      failwith "not implemented"
+      (*evaluate your resources, and discard the least valuable ones.
+      I may want to make some exceptions to ensure that the bot retains
+      a reasonably diverse hand.*)
     | TradeRequest -> failwith "not implemented"
+      (*compare states before and after the request. If it increases
+      the difference between your score and the next highest player's
+      score, accept it.*)
     | ActionRequest -> 
       if is_none t.dicerolled then Action(RollDice) 
       else failwith "not implemented"
+      (*I'll first need to ponder some trades*)
+      (*Then I'll need to focus on what makes sense to buy*)
 
     
 end

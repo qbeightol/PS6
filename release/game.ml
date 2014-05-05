@@ -8,7 +8,7 @@ open MoreUtil
 
 
 
-type game = t (*can I remove this declaration, or will the compiler freak out?*)
+(*type game = t can I remove this declaration, or will the compiler freak out?*)
 
 let state_of_game g =
   let hexes = g.board.map.hexes in
@@ -57,9 +57,9 @@ let handle_move g m =
         match req with
         | InitialRequest -> 
           InitialMove (get_some (pick_random (valid_initial_moves g)))
-        | RobberMove x -> robber_helper g x
-        | DiscardMove c -> discard_helper g c
-        | TradeResponse b -> trade_helper g b
+        | RobberRequest -> robber_helper g
+        | DiscardRequest -> discard_helper g
+        | TradeRequest -> trade_helper g
         | ActionRequest ->
           if is_none g.turn.dicerolled then Action(RollDice) 
                                        else Action(EndTurn)
