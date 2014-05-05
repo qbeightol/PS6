@@ -148,7 +148,7 @@ let presentation g =
     }
   in
   let blue = present_player_info g.turn.active Blue g.blue in
-  let red = present_player_info g.turn.active Orange g.orange in
+  let red = present_player_info g.turn.active Red g.red in
   let orange = present_player_info g.turn.active Orange g.orange in
   let white = present_player_info g.turn.active White g.white in
   let turn = 
