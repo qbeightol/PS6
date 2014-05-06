@@ -7,7 +7,7 @@ open GameHelper
 open MoreUtil
 
 
-(*type game = GameType.t*)
+type game = GameType.t
 
 let state_of_game g =
   let hexes = g.board.map.hexes in
