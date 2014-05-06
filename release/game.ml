@@ -7,7 +7,7 @@ open GameHelper
 open MoreUtil
 
 
-type game = GameType.t
+(*type game = GameType.t*)
 
 let state_of_game g =
   let hexes = g.board.map.hexes in
@@ -33,8 +33,6 @@ let game_of_state ((map, structs, deck, discard, robber), plist, turn, next) =
     } in
   let (blue, red, orange, white) = to_player_tuple plist in
   let (blue, red, orange, white) = ratio_helper (blue, red, orange, white) settlements ports in
-  
-
   { board = board;
     blue = blue;
     red = red;

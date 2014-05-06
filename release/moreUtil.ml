@@ -16,6 +16,16 @@ let is_some o = not (is_none o)
 (*****************************************************************************)
 (* {list utils}                                                              *)
 (*****************************************************************************)
+
+(*returns a list consisting of n copies of e*)
+let list_gen n e = 
+  if n < 0 then failwith "n must be positive"
+  else 
+    let rec loop n =
+      if n = 0 then [] else e::(loop (n-1))
+    in
+    loop n
+
 (** Returns a list of indices of lst that satisfy the predicate p. *)
 let list_indices_of (p : 'a -> bool) (lst : 'a list) : int list =
   let rec process l n =
@@ -61,18 +71,21 @@ let map_4tuple f (a, b, c, d) = (f a, f b, f c, f d)
 let map_4tuple2 f (a1, b1, c1, d1) (a2, b2, c2, d2) = 
   (f a1 a2, f b1 b2, f c1 c2, f d1 d2)
 
+(*****************************************************************************)
+(* {5-tuple utils}                                                           *)
+(*****************************************************************************)
+let fold_5tuple f acc (a,b,c,d,e) = List.fold_left f acc [a;b;c;d;e]
 
 (******************************************************************************)
 (** {Match utils}                                                             *)
 (******************************************************************************)
 
-(* Returns the number of the number of victory points a settlement is worth*)
-let settlement_num_vp (set : settlement) : int =
-  match set with
-    | Town -> cVP_TOWN
-    | City -> cVP_CITY 
 
-let is_road_color color (c, l) = color = c
+
+let intersection_color i =
+  match i with
+  | None -> None
+  | Some (color, _) -> Some color
 
 let is_intersection_color color i = 
   match i with 
@@ -82,6 +95,14 @@ let is_intersection_color color i =
 let is_intersection_town = function
   | Some (_, Town) -> true
   | _ -> false
+
+let is_road_color color (c, l) = color = c
+
+(* Returns the number of the number of victory points a settlement is worth*)
+let settlement_num_vp (set : settlement) : int =
+  match set with
+    | Town -> cVP_TOWN
+    | City -> cVP_CITY
 
 (*****************************************************************************)
 (* {point utils}                                                             *)
@@ -128,6 +149,29 @@ let remaining_road_locs (g: GameType.t) : line list =
   let p e = not (List.mem e lines_and_revs) in
     List.filter p all_lines
 
+(*****************************************************************************)
+(* {piece utils}                                                             *)
+(*****************************************************************************)
+
+(*returns all the points on the board except for those in pts*)
+let piece_complement (pts: piece list) : piece list = 
+  let sorted_pts = List.sort (compare) pts in
+  let rec loop sorted_pts n=
+    if n<=18 then
+      match sorted_pts with
+      | [] -> n::(loop sorted_pts (n+1))
+      | hd::tl -> 
+        if hd = n then loop tl (n+1)
+        else n::(loop sorted_pts (n+1))
+    else []
+  in
+  loop sorted_pts 0
+
+
+(*****************************************************************************)
+(* {move utils}                                                             *)
+(*****************************************************************************)
+
 (*returns a list of lines representing valid initial moves*)
 let valid_initial_moves (g: GameType.t) : line list =
   let sett_locs = remaining_sett_locs g in
@@ -137,6 +181,28 @@ let valid_initial_moves (g: GameType.t) : line list =
       List.filter p road_locs
   in
   List.flatten (List.map adjacent_road_locs sett_locs)
+
+let valid_robber_moves g : (piece * color option) list =
+  let robber_position = g.board.robber in
+  let valid_points = piece_complement [robber_position] in
+  let adjacent_colors pt = 
+    let corners = piece_corners pt in
+    let possible_setts = list_nths g.board.structures.settlements corners in
+    let f acc e = 
+      let sett_color = intersection_color e in
+        match sett_color with
+        | None -> acc
+        | c -> if List.mem c acc then acc else c::acc
+    in
+    let temp = List.fold_left f [] possible_setts in
+      if temp = [] then [None] else temp
+  in
+  let f acc pt = 
+    let c_opts = adjacent_colors pt in
+    let f' acc c_opt = (pt, c_opt)::acc in
+      (List.fold_left f' [] c_opts)@acc
+  in 
+    List.fold_left f [] valid_points
 
 (*returns a list of roads that c can build*)
 let c_buildable_roads (g: GameType.t) (c: color) : line list = 
@@ -169,6 +235,7 @@ already established towns*)
 let c_buildable_cities (g: GameType.t) (c: color) : point list = 
   let p i = is_intersection_town i && is_intersection_color c i in
   list_indices_of p g.board.structures.settlements
+
 
 (******************************************************************************)
 (** {player utils}                                                            *)
@@ -312,6 +379,7 @@ let set_ratio pr new_ratio =
 
 let resource_rec_to_tuple r = (r.bricks, r.wool, r.ore, r.grain, r.lumber) 
 
+(*returns c's inventory as a 5-tuple--i.e. an inventory*)
 let inv g c = 
   match c with 
   | Blue -> resource_rec_to_tuple g.blue.inventory
@@ -439,3 +507,78 @@ let calc_vp (g: GameType.t) : (int * int * int * int) =
       List.fold_left f (0,0,0,0) players
   in
   map_4tuple2 (+) sett_vps player_vps
+
+
+(*****************************************************************************)
+(* {potentially bad idea utils}                                              *)
+(*****************************************************************************)
+
+let ratio_helper (blue, red, orange, white) settlements ports =
+  (* update player ratios based on settlements and ports *)
+  let fold_help color ((i, acc) : (int * resourcerecord)) (inter : intersection) =
+    let exist_helper (((p1 : int), (p2 : int)), _, _) : bool = 
+      (p1 = i) || (p2 = i) in
+    match inter with
+    | Some (c,_ ) when c = color -> 
+      begin
+        if not (List.exists (exist_helper) ports) then (i + 1, acc)
+        else let (l, ra, res) = (List.find (exist_helper) ports) in
+        match res with
+        | Any -> 
+          begin
+            i + 1, { bricks = (min ra acc.bricks);
+              ore = (min ra acc.ore);
+              wool = (min ra acc.wool);
+              lumber = (min ra acc.lumber);
+              grain = (min ra acc.grain) }
+          end
+        | PortResource Brick -> i + 1, {acc with bricks = (min ra acc.bricks);}
+        | PortResource Ore -> i + 1, {acc with ore = (min ra acc.ore);}
+        | PortResource Wool -> i + 1, {acc with wool = (min ra acc.wool);}
+        | PortResource Lumber -> i + 1, {acc with lumber = (min ra acc.lumber);}
+        | PortResource Grain -> i + 1, {acc with grain = (min ra acc.grain);}
+      end
+    | _ -> (i + 1, acc) in
+  let blue_ratio = snd (List.fold_left (fold_help Blue) (0, blue.ratio) settlements) in
+  let red_ratio = snd (List.fold_left (fold_help Red) (0, red.ratio) settlements) in
+  let orange_ratio = snd (List.fold_left (fold_help Orange) (0, orange.ratio) settlements) in
+  let white_ratio = snd (List.fold_left (fold_help White) (0, white.ratio) settlements) in
+  ( 
+    {blue with ratio = blue_ratio},
+    {red with ratio = red_ratio},
+    {orange with ratio = orange_ratio},
+    {white with ratio = white_ratio}
+  )
+
+let state_of_game g =
+  let hexes = g.board.map.hexes in
+  let ports = g.board.map.ports in
+  let structures = (g.board.structures.settlements,g.board.structures.roads) in
+  let deck = g.board.deck in
+  let discard = g.board.discard in
+  let robber = g.board.robber in
+  let plist = to_player_list [g.blue; g.red; g.orange; g.white] in
+  let turn = g.turn in
+  let next = g.next in
+    (((hexes, ports), structures, deck, discard, robber), plist, turn, next)
+
+let game_of_state ((map, structs, deck, discard, robber), plist, turn, next) =
+  let (hexes, ports) =  map in
+  let (settlements, roads) = structs in
+  let board = 
+    { map = {hexes = hexes; ports = ports};
+      structures = {settlements = settlements; roads = roads};
+      deck = deck;
+      discard = discard;
+      robber = robber
+    } in
+  let (blue, red, orange, white) = to_player_tuple plist in
+  let (blue, red, orange, white) = ratio_helper (blue, red, orange, white) settlements ports in
+  { board = board;
+    blue = blue;
+    red = red;
+    orange = orange;
+    white = white;
+    turn = turn; 
+    next = next
+  }
