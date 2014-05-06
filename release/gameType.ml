@@ -20,11 +20,11 @@ type boardrecord = {
 }
 
 type resourcerecord = {
-  mutable bricks: int;
-  mutable wool: int;
-  mutable ore: int;
-  mutable grain: int;
-  mutable lumber: int
+  bricks: int;
+  wool: int;
+  ore: int;
+  grain: int;
+  lumber: int
 }
 
 type playerrecord = {
