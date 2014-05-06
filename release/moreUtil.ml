@@ -351,3 +351,19 @@ let calc_vp (g: GameType.t) : (int * int * int * int) =
       List.fold_left f (0,0,0,0) players
   in
   map_4tuple2 (+) sett_vps player_vps
+
+(*****************************************************************************)
+(* {validate move utils}                                                     *)
+(*****************************************************************************)
+
+let valid_trade_helper g (id, cost1, cost2) = 
+    let rec_to_tuple r = (r.bricks, r.wool, r.ore, r.grain, r.lumber) in
+    let inv g c = 
+      match c with 
+      | Blue -> rec_to_tuple g.blue.inventory
+      | Red -> rec_to_tuple g.red.inventory
+      | Orange -> rec_to_tuple g.orange.inventory
+      | White -> rec_to_tuple g.white.inventory in
+    let f_or_t (b1, b2, b3, b4, b5) = b1 && b2 && b3 && b4 && b5 in
+    let owns g c t = f_or_t (map_cost2 (>=) (inv g c) t) in
+    (owns g g.turn.active cost1) && (owns g id cost2)
