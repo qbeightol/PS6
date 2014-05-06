@@ -62,6 +62,27 @@ let map_4tuple2 f (a1, b1, c1, d1) (a2, b2, c2, d2) =
   (f a1 a2, f b1 b2, f c1 c2, f d1 d2)
 
 
+(******************************************************************************)
+(** {Match utils}                                                             *)
+(******************************************************************************)
+
+(* Returns the number of the number of victory points a settlement is worth*)
+let settlement_num_vp (set : settlement) : int =
+  match set with
+    | Town -> cVP_TOWN
+    | City -> cVP_CITY 
+
+let is_road_color color (c, l) = color = c
+
+let is_intersection_color color i = 
+  match i with 
+  | None -> false
+  | Some (c,s) -> color = c
+
+let is_intersection_town = function
+  | Some (_, Town) -> true
+  | _ -> false
+
 (*****************************************************************************)
 (* {point utils}                                                             *)
 (*****************************************************************************)
@@ -119,38 +140,35 @@ let valid_initial_moves (g: GameType.t) : line list =
 
 (*returns a list of roads that c can build*)
 let c_buildable_roads (g: GameType.t) (c: color) : line list = 
-  (*let rem_road_locs = remaining_road_locs g in
-  let player_sett_locs = *)
+  let rem_road_locs = remaining_road_locs g in
+  let player_sett_locs = list_indices_of (is_intersection_color c) g.board.structures.settlements in
   (*look for remaining roads who share a point with a player sett location*)
-  failwith "not implemented"
+  let p (p1, p2) = 
+    let p' sett_loc = p1 = sett_loc || p2 = sett_loc in
+      List.exists p' player_sett_locs
+  in 
+    List.filter p rem_road_locs
 
 (*returns a list of towns that c can build*)
 let c_buildable_towns (g: GameType.t) (c: color) : point list =
-  (*let rem_sett_locs = remaining_sett_locs g in
-  let player_road_locs = *)
+  let rem_sett_locs = remaining_sett_locs g in
+  let player_road_locs = List.filter (is_road_color c) g.board.structures.roads
+  in
   (*check for remaining settlements that are at the end of one the roads
   that the player controls. Note that rem_sett_locs automatically filters out
   the points adjacent to the player's city, along with any other locations
   that would violate the distance rule*)
-  failwith "not implemented"
+  let p sett_loc = 
+    let p' (_,(p1, p2)) = p1 = sett_loc || p2 = sett_loc in
+      List.exists p' player_road_locs
+  in
+    list_indices_of p rem_sett_locs
 
 (*returns a list of Cities that c can build--i.e. a list of points where c has
 already established towns*)
 let c_buildable_cities (g: GameType.t) (c: color) : point list = 
-
-  failwith "not implemented"
-
-
-
-(******************************************************************************)
-(** {Match utils}                                                             *)
-(******************************************************************************)
-
-(* Returns the number of the number of victory points a settlement is worth*)
-let settlement_num_vp (set : settlement) : int =
-  match set with
-    | Town -> cVP_TOWN
-    | City -> cVP_CITY 
+  let p i = is_intersection_town i && is_intersection_color c i in
+  list_indices_of p g.board.structures.settlements
 
 (******************************************************************************)
 (** {player utils}                                                            *)
