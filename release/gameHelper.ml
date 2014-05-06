@@ -190,10 +190,49 @@ let to_player_tuple (plist: player list) : (pr * pr * pr * pr) =
     in 
     List.fold_right f plist (empty_pr, empty_pr, empty_pr, empty_pr) 
 
+
+let ratio_helper (blue, red, orange, white) settlements ports =
+  (* update player ratios based on settlements and ports *)
+  let fold_help color ((i, acc) : (int * resourcerecord)) (inter : intersection) =
+    let exist_helper (((p1 : int), (p2 : int)), _, _) : bool = 
+      (p1 = i) || (p2 = i) in
+    match inter with
+    | Some (c,_ ) when c = color -> 
+      begin
+        if not (List.exists (exist_helper) ports) then (i + 1, acc)
+        else let (l, ra, res) = (List.find (exist_helper) ports) in
+        match res with
+        | Any -> 
+          begin
+            i + 1, { bricks = (min ra acc.bricks);
+              ore = (min ra acc.ore);
+              wool = (min ra acc.wool);
+              lumber = (min ra acc.lumber);
+              grain = (min ra acc.grain) }
+          end
+        | PortResource Brick -> i + 1, {acc with bricks = (min ra acc.bricks);}
+        | PortResource Ore -> i + 1, {acc with ore = (min ra acc.ore);}
+        | PortResource Wool -> i + 1, {acc with wool = (min ra acc.wool);}
+        | PortResource Lumber -> i + 1, {acc with lumber = (min ra acc.lumber);}
+        | PortResource Grain -> i + 1, {acc with grain = (min ra acc.grain);}
+      end
+    | _ -> (i + 1, acc) in
+  let blue_ratio = snd (List.fold_left (fold_help Blue) (0, blue.ratio) settlements) in
+  let red_ratio = snd (List.fold_left (fold_help Red) (0, red.ratio) settlements) in
+  let orange_ratio = snd (List.fold_left (fold_help Orange) (0, orange.ratio) settlements) in
+  let white_ratio = snd (List.fold_left (fold_help White) (0, white.ratio) settlements) in
+  ( 
+  	{blue with ratio = blue_ratio},
+  	{red with ratio = red_ratio},
+  	{orange with ratio = orange_ratio},
+  	{white with ratio = white_ratio}
+  )
+
 	(* change 
     the board's robber location to p. Then remove a random resource from
     the player with color c_opt and give it to the active player *)
 let robber_helper g (p, c_opt) = failwith "not implemented"
+
 
 (*  I assume this involves subtracting c from the player
     who made the discard move. I'm not quite sure how you tell which player
