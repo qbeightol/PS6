@@ -2,6 +2,7 @@ open Definition
 open Registry
 open Constant
 open Util
+open MoreUtil
 
 (** Give your bot a 2-20 character name. *)
 let name = "myopicbot"
@@ -66,6 +67,17 @@ let name = "myopicbot"
 
 
 module Bot = functor (S : Soul) -> struct
+  let cVP_ROAD = 0.3 (*A road's approximate worth in victory points--this 
+    is kind of handwavy. You'd certainly could get 2 victory points simply by
+    owning five roads, but you'd probably need to much more--maybe 10 to 
+    actually have a firm grasp on the trophy (hence a value greater than .2) 
+    Adding another tenth a point seems reasonable, given that roads do have 
+    some strategic value, and in general, its probably good to encourage the 
+    bot to build roads.*)
+  let cVP_KNIGHT = 0.3
+  let cVP_ROAD_BUILDING = cVP_ROAD *. 2. -. 0.1
+  (*let cVP_YEAR_OF_PLENTY = *)
+
   (* If you use side effects, start/reset your bot for a new game *)
   let initialize () = ()
 
@@ -91,30 +103,10 @@ module Bot = functor (S : Soul) -> struct
       let drawable_cards = total_cards -undrawable_cards in
         ((float remaining_vps) /. float(drawable_cards)) *. float (cVP_CARD)
 
-
-  (*I don't think I'm going to use this
-  type resourcevalues = {
-    b: float;
-    w: float;
-    o: float;
-    g: float;
-    l: float
-  }
-  *)
-
-
   (*returns a record containing rough estimates of how much the active player 
   values each resource*)
-  let eval_resources (s: state) =
-
-    let cVP_ROAD = 0.3 (*A road's approximate worth in victory points--this 
-    is kind of handwavy. You'd certainly could get 2 victory points simply by
-    owning five roads, but you'd probably need to much more--maybe 10 to 
-    actually have a firm grasp on the trophy (hence a value greater than .2) 
-    Adding another tenth a point seems reasonable, given that roads do have 
-    some strategic value, and in general, its probably good to encourage the 
-    bot to build roads.*)
-    in
+  (*update to evaluate from a particular color's perspective?*)
+  let eval_resources (s: state) (c: color) =
     let card_value = calc_card_value s in
     let builds = [(cCOST_ROAD, cVP_ROAD); (cCOST_TOWN, float cVP_TOWN); 
           (cCOST_CITY, float (cVP_CITY-cVP_TOWN)); (cCOST_CARD, card_value)]
@@ -125,31 +117,78 @@ module Bot = functor (S : Soul) -> struct
     in
     List.fold_left f (0., 0., 0., 0., 0.) values
 
+  let calc_yop_value s c =
+    let (b_val, w_val, o_val, g_val, l_val) = eval_resources s c in
+    2. *. (max b_val (max w_val (max o_val (max g_val l_val))))
 
-  (*I'm still deciding on what, exactly, this function will do. In general, 
-    its supposed to return a value that represents the "goodness" of the 
-    state (most likely from the player's point of view). 
+  let calc_monop_value s c = failwith "not implemented"
 
-    It's a little tricky to implement, however, since I'm not sure how the a.i.
-    will predict the behavior of other bots, since their behavior isn't dictated
-    by the "goodness" from the perspective of the current player. They should
-    consider the "goodness" of all players, and make decisions that mazimize
-    their goodness relative to the other players. 
+  let calc_hand_value s c cs =
+    let value = function
+      | Knight -> cVP_KNIGHT
+      | VictoryPoint -> float cVP_CARD
+      | RoadBuilding -> cVP_ROAD_BUILDING
+      | YearOfPlenty -> calc_yop_value s c
+      | Monopoly -> calc_monop_value s c
+    in
+    let f acc e = acc +. (value e) in
+      List.fold_left f 0. cs
 
-    It might be reasonable to return a tuple of ints, which represents the 
-    goodness of the state from each players pespective. Alternately,
-    I might return a tuple of floats. 
+  let calc_approx_sett_vp = function
+      | None -> (0., 0., 0., 0.) 
+      | Some (Blue, sett) -> (float (settlement_num_vp sett), 0., 0., 0.)
+      | Some (Red, sett) -> (0., float (settlement_num_vp sett), 0., 0.)
+      | Some (Orange, sett) -> (0., 0., float (settlement_num_vp sett), 0.)
+      | Some (White, sett) -> (0., 0., 0., float (settlement_num_vp sett))
 
-    Or I might return a float indicating the "goodness" of the state from
-    just one players perspective. 
+  let calc_approx_vp s : (float * float * float * float) =
+    let ((_, (setts,_), _, _, _), players, _,_) = s in
+    let sett_vps = 
+      let f (vpb, vpr, vpo, vpw) e = 
+        let (e_vpb, e_vpr, e_vpo, e_vpw) = calc_approx_sett_vp e in
+          (vpb +. e_vpb, vpr +. e_vpr, vpo +. e_vpo, vpw +. e_vpw)
+      in
+      List.fold_left f (0., 0., 0., 0.) setts
+    in
+    let card_value = calc_card_value s in
+    let player_vps = 
+      let player_vp (color,(_, cards),(_, lr, la)) = 
+        let card_vp =
+          match cards with
+          | Hidden n -> (float n) *. card_value
+          | Reveal cs -> calc_hand_value s color cs
+        in
+        let lr_vp = if lr then float cVP_LONGEST_ROAD else 0. in
+        let la_vp = if la then float cVP_LARGEST_ARMY else 0. in
+        let tot_vp = card_vp +. lr_vp +. la_vp in
+          match color with
+          | Blue -> (tot_vp, 0., 0., 0.)
+          | Orange -> (0., tot_vp, 0., 0.)
+          | Red -> (0., 0., tot_vp, 0.)
+          | White -> (0., 0., 0., tot_vp)
+      in
+      let f acc e = map_4tuple2 (+.) acc (player_vp e) in
+        List.fold_left f (0.,0.,0.,0.) players
+    in
+    map_4tuple2 (+.) sett_vps player_vps
 
-    Record of floats?
+      
 
-    yeah, floats seem like a good idea. That way I can have the numbers
-    approximately represent the number of victory points each player has
-  *)
 
+
+
+  (*evaluates the state's "goodness" from each player's perspective; returns
+  the tuple (b,r,o,w) where each entry represents the goodness of the state
+  in terms of victory points*)
   let eval_state (s : state) (c: color) : (float * float * float * float) =
+    (*
+    let ((map, (setts, roads), _, _, robber), players, _, _) = s in
+    (*settlement points*)
+    let (spb, spr, spo, spw) = ... in
+    (*road points*)
+    let (rpb, rpr, rpo, rpw) = ... in
+    (*player points*)
+    *)
     failwith "not implemented"
 
   (* Invalid moves are overridden in game *)

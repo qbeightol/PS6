@@ -52,6 +52,38 @@ let list_replace_nth lst n e =
     in traverse lst n 0
 
 (*****************************************************************************)
+(* {4-tuple utils}                                                           *)
+(*****************************************************************************)
+
+let map_4tuple f (a, b, c, d) = (f a, f b, f c, f d)
+
+(** Maps a function across two 4-tuples *)
+let map_4tuple2 f (a1, b1, c1, d1) (a2, b2, c2, d2) = 
+  (f a1 a2, f b1 b2, f c1 c2, f d1 d2)
+
+
+(******************************************************************************)
+(** {Match utils}                                                             *)
+(******************************************************************************)
+
+(* Returns the number of the number of victory points a settlement is worth*)
+let settlement_num_vp (set : settlement) : int =
+  match set with
+    | Town -> cVP_TOWN
+    | City -> cVP_CITY 
+
+let is_road_color color (c, l) = color = c
+
+let is_intersection_color color i = 
+  match i with 
+  | None -> false
+  | Some (c,s) -> color = c
+
+let is_intersection_town = function
+  | Some (_, Town) -> true
+  | _ -> false
+
+(*****************************************************************************)
 (* {point utils}                                                             *)
 (*****************************************************************************)
 
@@ -106,13 +138,118 @@ let valid_initial_moves (g: GameType.t) : line list =
   in
   List.flatten (List.map adjacent_road_locs sett_locs)
 
+(*returns a list of roads that c can build*)
+let c_buildable_roads (g: GameType.t) (c: color) : line list = 
+  let rem_road_locs = remaining_road_locs g in
+  let player_sett_locs = list_indices_of (is_intersection_color c) g.board.structures.settlements in
+  (*look for remaining roads who share a point with a player sett location*)
+  let p (p1, p2) = 
+    let p' sett_loc = p1 = sett_loc || p2 = sett_loc in
+      List.exists p' player_sett_locs
+  in 
+    List.filter p rem_road_locs
 
+(*returns a list of towns that c can build*)
+let c_buildable_towns (g: GameType.t) (c: color) : point list =
+  let rem_sett_locs = remaining_sett_locs g in
+  let player_road_locs = List.filter (is_road_color c) g.board.structures.roads
+  in
+  (*check for remaining settlements that are at the end of one the roads
+  that the player controls. Note that rem_sett_locs automatically filters out
+  the points adjacent to the player's city, along with any other locations
+  that would violate the distance rule*)
+  let p sett_loc = 
+    let p' (_,(p1, p2)) = p1 = sett_loc || p2 = sett_loc in
+      List.exists p' player_road_locs
+  in
+    list_indices_of p rem_sett_locs
 
-(*returns a list of lines where a particular player can build roads*)
+(*returns a list of Cities that c can build--i.e. a list of points where c has
+already established towns*)
+let c_buildable_cities (g: GameType.t) (c: color) : point list = 
+  let p i = is_intersection_town i && is_intersection_color c i in
+  list_indices_of p g.board.structures.settlements
+
+(******************************************************************************)
+(** {player utils}                                                            *)
+(******************************************************************************)
+
+(*a player record with no resources, cards, knights, nor trophies*)
+let empty_pr =
+  let inventory : resourcerecord = 
+    { bricks = 0;
+      wool = 0;
+      ore = 0;
+      grain = 0;
+      lumber = 0
+    }
+  in
+  { inventory = inventory;
+    cards = Reveal [];
+    knights = 0;
+    longestroad = false;
+    largestarmy = false;
+    ratio = inventory
+  }
+
+type pr = playerrecord
+
+let to_ht_tuple (p: pr) : (hand * trophies) =
+  let p_inv = p.inventory in
+  let inv = (p_inv.bricks, p_inv.wool, p_inv.ore, p_inv.grain, p_inv.lumber) in
+  ((inv, p.cards), (p.knights, p.longestroad, p.largestarmy))
+
+let to_player_list (players : pr list) : player list =
+  match players with
+  | [blue; red; orange; white] ->
+    let (bh, bt) = to_ht_tuple blue in
+    let (rh, rt) = to_ht_tuple red in
+    let (oh, ot) = to_ht_tuple orange in
+    let (wh, wt) = to_ht_tuple white in
+      [(Blue, bh, bt); (Red, rh, rt); (Orange, oh, ot); (White, wh, wt)]
+  | _ -> failwith "invalid player record list"
+
+let to_player_tuple (plist: player list) : (pr * pr * pr * pr) =
+  (*qeb2: I'm not a huge fan of this implementation. It really ought
+  to check whether the players have four distinct colors. Maybe I can do
+  something clever with pattern matching to check that all four players are
+  present.*)
+  if List.length plist <> 4 then failwith "invalid player list"
+  else 
+    let f (color, (inventory, cards), (k, lr, la)) (blu, red, org, wht) =
+      let (b, w, o, g, l) = inventory in 
+      let new_record = 
+        { inventory = 
+          { bricks = b;
+            wool = w;
+            ore = o;
+            grain = g;
+            lumber = l
+          };
+          cards = cards;
+          knights = k;
+          longestroad = lr;
+          largestarmy = la;
+          ratio = 
+          { bricks = 4;
+            wool = 4;
+            ore = 4;
+            grain = 4;
+            lumber = 4
+          }
+        }
+      in
+      match color with
+      | Blue -> (new_record, red, org, wht)
+      | Red ->  (blu, new_record, org, wht)
+      | Orange -> (blu, red, new_record, wht)
+      | White -> (blu, red, org, new_record)
+    in 
+    List.fold_right f plist (empty_pr, empty_pr, empty_pr, empty_pr) 
 
 
 (*****************************************************************************)
-(* {resource generation utils}                                                             *)
+(* {resource generation utils}                                               *)
 (*****************************************************************************)
 
 let player_index (c: color) = 
@@ -166,3 +303,51 @@ let resource_gen g roll =
       list_indices_of p g.board.map.hexes
   in List.fold_left (supply_resources g) zero_cost_lst gen_hex_indices
 
+(*****************************************************************************)
+(* {victory point utils}                                                     *)
+(*****************************************************************************)
+let calc_hand_vp cards =
+    let value = function
+      | VictoryPoint -> cVP_CARD
+      | _ -> 0
+    in
+    let f acc e = acc + (value e) in
+      List.fold_left f 0 cards 
+
+let calc_vp (g: GameType.t) : (int * int * int * int) =
+  let setts = g.board.structures.settlements in
+  let players = to_player_list [g.blue; g.red; g.orange; g.white] in
+  let calc_sett_vp = function
+    | None -> (0, 0, 0, 0) 
+    | Some (Blue, sett) -> (settlement_num_vp sett, 0, 0, 0)
+    | Some (Red, sett) -> (0, settlement_num_vp sett, 0, 0)
+    | Some (Orange, sett) -> (0, 0, settlement_num_vp sett, 0)
+    | Some (White, sett) -> (0, 0, 0, settlement_num_vp sett)
+  in 
+  let sett_vps = 
+    let f (vpb, vpr, vpo, vpw) e = 
+      let (e_vpb, e_vpr, e_vpo, e_vpw) = calc_sett_vp e in
+        (vpb + e_vpb, vpr + e_vpr, vpo + e_vpo, vpw + e_vpw)
+    in
+    List.fold_left f (0, 0, 0, 0) setts
+  in
+  let player_vps = 
+    let player_vp (color,(_, cards),(_, lr, la)) = 
+      let card_vp =
+        match cards with
+        | Hidden n -> failwith "this shouldn't fail"
+        | Reveal cs -> calc_hand_vp cs
+      in
+      let lr_vp = if lr then cVP_LONGEST_ROAD else 0 in
+      let la_vp = if la then cVP_LARGEST_ARMY else 0 in
+      let tot_vp = card_vp + lr_vp + la_vp in
+        match color with
+        | Blue -> (tot_vp, 0, 0, 0)
+        | Orange -> (0, tot_vp, 0, 0)
+        | Red -> (0, 0, tot_vp, 0)
+        | White -> (0, 0, 0, tot_vp)
+    in
+    let f acc e = map_4tuple2 (+) acc (player_vp e) in
+      List.fold_left f (0,0,0,0) players
+  in
+  map_4tuple2 (+) sett_vps player_vps
