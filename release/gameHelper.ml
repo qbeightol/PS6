@@ -272,3 +272,13 @@ let playCard_helper g pc =
     | PlayMonopoly r -> failwith "not implemented"
   end 
 
+let present_player_info active_color player_color player =
+  { inventory = player.inventory;
+    cards = 
+      if active_color = player_color then player.cards 
+      else hide player.cards;
+    knights = player.knights;
+    longestroad = player.longestroad;
+    largestarmy = player.largestarmy;
+    ratio = player.ratio
+  }

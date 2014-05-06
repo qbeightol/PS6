@@ -70,7 +70,7 @@ let point_complement (pts: point list) : point list =
   loop sorted_pts 0
 
 (*returns a list of points where settlements can still be built*)
-let remaining_sett_locs (g: t) : point list = 
+let remaining_sett_locs (g: GameType.t) : point list = 
   let sett_locs = list_indices_of (is_some) g.board.structures.settlements in
   let adjacent_locs = List.map (adjacent_points) sett_locs in
   let invalid_locs = List.flatten (sett_locs::adjacent_locs) in
@@ -88,7 +88,7 @@ let all_lines =
 (*returns a list of lines where roads can still be built
 Note: if the line (p1, p2) is unoccupied, both (p1, p2) and (p2, p1) will 
 appear in the list*)
-let remaining_road_locs (g: t) : line list =
+let remaining_road_locs (g: GameType.t) : line list =
   let roads = g.board.structures.roads in
   let lines = List.map (fun (c, l) -> l) roads in
   let add_reverse (p1, p2) = [(p1, p2); (p2, p1)] in
@@ -97,7 +97,7 @@ let remaining_road_locs (g: t) : line list =
     List.filter p all_lines
 
 (*returns a list of lines representing valid initial moves*)
-let valid_initial_moves (g:t) : line list =
+let valid_initial_moves (g: GameType.t) : line list =
   let sett_locs = remaining_sett_locs g in
   let road_locs = remaining_road_locs g in
   let adjacent_road_locs sett = 

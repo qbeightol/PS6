@@ -7,8 +7,7 @@ open GameHelper
 open MoreUtil
 
 
-
-type game = t (*can I remove this declaration, or will the compiler freak out?*)
+type game = GameType.t
 
 let state_of_game g =
   let hexes = g.board.map.hexes in
@@ -59,9 +58,9 @@ let handle_move g m =
         match req with
         | InitialRequest -> 
           InitialMove (get_some (pick_random (valid_initial_moves g)))
-        | RobberRequest -> failwith "not implemented"
-        | DiscardRequest -> failwith "not implemented"
-        | TradeRequest -> failwith "not implemented"
+        | RobberRequest -> failwith "not implemented" (*robber_helper g*)
+        | DiscardRequest -> failwith "not implemented" (*discard_helper g*)
+        | TradeRequest -> failwith "not implemented" (*trade_helper g*)
         | ActionRequest ->
           if is_none g.turn.dicerolled then Action(RollDice) 
                                        else Action(EndTurn)
@@ -76,7 +75,7 @@ let handle_move g m =
       begin
         match a with
         | RollDice -> 
-         (*  let roll = random_roll () in *) failwith "not implemented"
+          (*let roll = random_roll () in*) failwith "not implemented"
           (*go through the tiles on the board and find the tiles whose rolls 
           match the current roll. 
 
@@ -113,4 +112,40 @@ let handle_move g m =
   in (None, updated_game) 
 
 
-let presentation g = failwith "Were not too much to pay for birth."
+let presentation g =
+  let board = 
+    { map = g.board.map;
+      structures = g.board.structures;
+      deck = hide g.board.deck;
+      discard = g.board.discard;
+      robber = g.board.robber
+    }
+  in
+  let blue = present_player_info g.turn.active Blue g.blue in
+  let red = present_player_info g.turn.active Red g.red in
+  let orange = present_player_info g.turn.active Orange g.orange in
+  let white = present_player_info g.turn.active White g.white in
+  let turn = 
+  { active = g.turn.active;
+    dicerolled = g.turn.dicerolled;
+    cardplayed = g.turn.cardplayed;
+    (*although trades should happen before buys, I'll hide this just in case
+    something weird happens*)
+    cardsbought = 
+      begin
+        let (c, r) = g.next in 
+          if g.turn.active = c then g.turn.cardsbought
+          else  hide g.turn.cardsbought
+      end;
+    tradesmade = g.turn.tradesmade;
+    pendingtrade = g.turn.pendingtrade
+  }
+  in
+  { board = board;
+    blue = blue;
+    red = red;
+    orange = orange;
+    white = white;
+    turn = turn; 
+    next = g.next
+  }
