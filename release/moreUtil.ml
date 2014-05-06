@@ -117,9 +117,28 @@ let valid_initial_moves (g: GameType.t) : line list =
   in
   List.flatten (List.map adjacent_road_locs sett_locs)
 
+(*returns a list of roads that c can build*)
+let c_buildable_roads (g: GameType.t) (c: color) : line list = 
+  (*let rem_road_locs = remaining_road_locs g in
+  let player_sett_locs = *)
+  (*look for remaining roads who share a point with a player sett location*)
+  failwith "not implemented"
 
+(*returns a list of towns that c can build*)
+let c_buildable_towns (g: GameType.t) (c: color) : point list =
+  (*let rem_sett_locs = remaining_sett_locs g in
+  let player_road_locs = *)
+  (*check for remaining settlements that are at the end of one the roads
+  that the player controls. Note that rem_sett_locs automatically filters out
+  the points adjacent to the player's city, along with any other locations
+  that would violate the distance rule*)
+  failwith "not implemented"
 
-(*returns a list of lines where a particular player can build roads*)
+(*returns a list of Cities that c can build--i.e. a list of points where c has
+already established towns*)
+let c_buildable_cities (g: GameType.t) (c: color) : point list = 
+
+  failwith "not implemented"
 
 
 
@@ -132,6 +151,83 @@ let settlement_num_vp (set : settlement) : int =
   match set with
     | Town -> cVP_TOWN
     | City -> cVP_CITY 
+
+(******************************************************************************)
+(** {player utils}                                                            *)
+(******************************************************************************)
+
+(*a player record with no resources, cards, knights, nor trophies*)
+let empty_pr =
+  let inventory : resourcerecord = 
+    { bricks = 0;
+      wool = 0;
+      ore = 0;
+      grain = 0;
+      lumber = 0
+    }
+  in
+  { inventory = inventory;
+    cards = Reveal [];
+    knights = 0;
+    longestroad = false;
+    largestarmy = false;
+    ratio = inventory
+  }
+
+type pr = playerrecord
+
+let to_ht_tuple (p: pr) : (hand * trophies) =
+  let p_inv = p.inventory in
+  let inv = (p_inv.bricks, p_inv.wool, p_inv.ore, p_inv.grain, p_inv.lumber) in
+  ((inv, p.cards), (p.knights, p.longestroad, p.largestarmy))
+
+let to_player_list (players : pr list) : player list =
+  match players with
+  | [blue; red; orange; white] ->
+    let (bh, bt) = to_ht_tuple blue in
+    let (rh, rt) = to_ht_tuple red in
+    let (oh, ot) = to_ht_tuple orange in
+    let (wh, wt) = to_ht_tuple white in
+      [(Blue, bh, bt); (Red, rh, rt); (Orange, oh, ot); (White, wh, wt)]
+  | _ -> failwith "invalid player record list"
+
+let to_player_tuple (plist: player list) : (pr * pr * pr * pr) =
+  (*qeb2: I'm not a huge fan of this implementation. It really ought
+  to check whether the players have four distinct colors. Maybe I can do
+  something clever with pattern matching to check that all four players are
+  present.*)
+  if List.length plist <> 4 then failwith "invalid player list"
+  else 
+    let f (color, (inventory, cards), (k, lr, la)) (blu, red, org, wht) =
+      let (b, w, o, g, l) = inventory in 
+      let new_record = 
+        { inventory = 
+          { bricks = b;
+            wool = w;
+            ore = o;
+            grain = g;
+            lumber = l
+          };
+          cards = cards;
+          knights = k;
+          longestroad = lr;
+          largestarmy = la;
+          ratio = 
+          { bricks = 4;
+            wool = 4;
+            ore = 4;
+            grain = 4;
+            lumber = 4
+          }
+        }
+      in
+      match color with
+      | Blue -> (new_record, red, org, wht)
+      | Red ->  (blu, new_record, org, wht)
+      | Orange -> (blu, red, new_record, wht)
+      | White -> (blu, red, org, new_record)
+    in 
+    List.fold_right f plist (empty_pr, empty_pr, empty_pr, empty_pr) 
 
 
 (*****************************************************************************)
@@ -200,8 +296,9 @@ let calc_hand_vp cards =
     let f acc e = acc + (value e) in
       List.fold_left f 0 cards 
 
-let calc_vp s : (int * int * int * int) =
-  let ((_, (setts,_), _, _, _), players, _,_) = s in
+let calc_vp (g: GameType.t) : (int * int * int * int) =
+  let setts = g.board.structures.settlements in
+  let players = to_player_list [g.blue; g.red; g.orange; g.white] in
   let calc_sett_vp = function
     | None -> (0, 0, 0, 0) 
     | Some (Blue, sett) -> (settlement_num_vp sett, 0, 0, 0)
