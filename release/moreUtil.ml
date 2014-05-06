@@ -194,6 +194,14 @@ let empty_pr =
 
 type pr = playerrecord
 
+let to_resource_rec (b, w, o, g, l) = 
+  { bricks = b;
+    wool = w;
+    ore = o;
+    grain = g;
+    lumber = l;
+  }
+
 let to_ht_tuple (p: pr) : (hand * trophies) =
   let p_inv = p.inventory in
   let inv = (p_inv.bricks, p_inv.wool, p_inv.ore, p_inv.grain, p_inv.lumber) in
@@ -247,6 +255,70 @@ let to_player_tuple (plist: player list) : (pr * pr * pr * pr) =
     in 
     List.fold_right f plist (empty_pr, empty_pr, empty_pr, empty_pr) 
 
+let set_inventory pr new_inv =
+  { inventory = new_inv;
+    cards = pr.cards;
+    knights = pr.knights;
+    longestroad = pr.longestroad;
+    largestarmy = pr.largestarmy;
+    ratio = pr.ratio
+  }
+
+let set_cards pr new_cards =
+  { inventory = pr.inventory;
+    cards = new_cards;
+    knights = pr.knights;
+    longestroad = pr.longestroad;
+    largestarmy = pr.largestarmy;
+    ratio = pr.ratio
+  }
+
+let set_knights pr new_knights =
+  { inventory = pr.inventory;
+    cards = pr.cards;
+    knights = new_knights;
+    longestroad = pr.longestroad;
+    largestarmy = pr.largestarmy;
+    ratio = pr.ratio
+  }
+
+let set_longest_road pr new_lr =
+  { inventory = pr.inventory;
+    cards = pr.cards;
+    knights = pr.knights;
+    longestroad = new_lr;
+    largestarmy = pr.largestarmy;
+    ratio = pr.ratio
+  }
+
+let set_largestarmy pr new_la = 
+  { inventory = pr.inventory;
+    cards = pr.cards;
+    knights = pr.knights;
+    longestroad = pr.longestroad;
+    largestarmy = new_la;
+    ratio = pr.ratio
+  }
+
+let set_ratio pr new_ratio =
+  { inventory = pr.inventory;
+    cards = pr.cards;
+    knights = pr.knights;
+    longestroad = pr.longestroad;
+    largestarmy = pr.largestarmy;
+    ratio = new_ratio
+  }
+
+
+let resource_rec_to_tuple r = (r.bricks, r.wool, r.ore, r.grain, r.lumber) 
+
+let inv g c = 
+  match c with 
+  | Blue -> resource_rec_to_tuple g.blue.inventory
+  | Red -> resource_rec_to_tuple g.red.inventory
+  | Orange -> resource_rec_to_tuple g.orange.inventory
+  | White -> resource_rec_to_tuple g.white.inventory
+
 
 (*****************************************************************************)
 (* {resource generation utils}                                               *)
@@ -294,14 +366,30 @@ let supply_resources g (other_rs: cost list) index =
   in
   List.fold_left f zero_cost_lst nearby_setts
 
-
+(*returns a new game state where each player's resources have been appropriately
+updated.*)
 let resource_gen g roll =
   (*I may want to return un update game state instead of an inventory list
   indicating what was generated*) 
   let gen_hex_indices = 
     let p (t, r) = (r = roll) in 
       list_indices_of p g.board.map.hexes
-  in List.fold_left (supply_resources g) zero_cost_lst gen_hex_indices
+  in 
+  let new_resources = 
+    List.fold_left (supply_resources g) zero_cost_lst gen_hex_indices
+  in 
+  let new_b_inv = map_cost2 (+) (inv g Blue) (List.nth new_resources 0) in
+  let new_r_inv = map_cost2 (+) (inv g Red) (List.nth new_resources 1) in
+  let new_o_inv = map_cost2 (+) (inv g Orange) (List.nth new_resources 2) in
+  let new_w_inv = map_cost2 (+) (inv g White) (List.nth new_resources 3) in
+    { board = g.board;
+      blue = set_inventory g.blue (to_resource_rec new_b_inv);
+      red = set_inventory g.red (to_resource_rec new_r_inv);
+      orange = set_inventory g.orange (to_resource_rec new_o_inv);
+      white = set_inventory g.white (to_resource_rec new_w_inv);
+      turn = g.turn;
+      next = g.next
+    }
 
 (*****************************************************************************)
 (* {victory point utils}                                                     *)

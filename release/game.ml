@@ -75,25 +75,30 @@ let handle_move g m =
       begin
         match a with
         | RollDice -> 
-          (*let roll = random_roll () in*) failwith "not implemented"
-          (*go through the tiles on the board and find the tiles whose rolls 
-          match the current roll. 
+          let roll = random_roll () in 
+            if roll = cROBBER_ROLL then 
+              failwith "not implemented" (*part of A2*)
+              (*handle discards and moving the robber
+                i.e.
+                + issue discard requests to any player that has more than 
+                  cMAX_HAND_SIZE cards
+                + ask the active player to move the robber
 
-          I'll probably want to use list_indices_of with the predicate
-          p (t, r) = (r = roll) 
-
-          then I'll want to find the players next to each tile, and reward
-          them the appropriate amound and kind of resources. 
-
-          So I'll probably want to use List.fold. And the accumulator probably
-          should be a list of tuples (at least, that'll make the construction 
-          and deconstruction of the data a little easier).
-
-          Go through the tiles
-          find the locations of possible nearby settlments using piece corners
-          figure out the re
-
-        *)
+                This is kind of tricky since you'll need to handle multiple 
+                discard requests. You'll need to issue one discard request
+                or robber request right away, and if they're are other requests
+                that need to be served, you'll need to add logic to the 
+                DiscardMove match statement that handle those requests.
+                (But I'm pretty certain that 
+                discard moves are only made when the robber is rolled. So 
+                implementing that logic might be as simple as checking--within
+                the DiscardMove match statement--whether any players have more
+                than the maximum hand size. If someone does, issue them a 
+                discard request. Otherwise, ask the active player to move the
+                robber. NOTE: DON'T CHANGE THE ACTIVE PLAYER WHEN ISSUING
+                DISCARD REQUESTS)
+              *)
+            else resource_gen g roll
         | MaritimeTrade x -> maritime_helper g x
         | DomesticTrade x -> domestic_helper g x
         | BuyBuild b -> buyBuild_helper g b
