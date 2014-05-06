@@ -32,34 +32,8 @@ let game_of_state ((map, structs, deck, discard, robber), plist, turn, next) =
       robber = robber
     } in
   let (blue, red, orange, white) = to_player_tuple plist in
-  (* update player ratios based on settlements and ports *)
-  let iter_help (i : int) (inter : intersection) : unit =
-    let exist_helper (((p1 : int), (p2 : int)), _, _) : bool = 
-      (p1 = i) || (p2 = i) in
-    match inter with
-    | None -> ()
-    | Some (c,_ ) -> if (List.exists (exist_helper) ports) 
-        then let (l, ra, res) = (List.find (exist_helper) ports) in
-        let player = match c with
-          | White -> white
-          | Red -> red
-          | Blue -> blue
-          | Orange -> orange in
-        match res with
-        | Any -> 
-          begin
-            player.ratio.bricks <- (min ra player.ratio.bricks);
-            player.ratio.ore <- (min ra player.ratio.ore);
-            player.ratio.wool <- (min ra player.ratio.wool);
-            player.ratio.lumber <- (min ra player.ratio.lumber);
-            player.ratio.grain <- (min ra player.ratio.grain)
-          end
-        | PortResource Brick -> player.ratio.bricks <- (min ra player.ratio.bricks)
-        | PortResource Ore -> player.ratio.ore <- (min ra player.ratio.ore)
-        | PortResource Wool -> player.ratio.wool <- (min ra player.ratio.wool)
-        | PortResource Lumber -> player.ratio.lumber <- (min ra player.ratio.lumber)
-        | PortResource Grain -> player.ratio.grain <- (min ra player.ratio.grain) in
-  List.iteri (iter_help) (settlements);
+  let (blue, red, orange, white) = ratio_helper (blue, red, orange, white) settlements ports in
+  
 
   { board = board;
     blue = blue;
