@@ -52,6 +52,17 @@ let list_replace_nth lst n e =
     in traverse lst n 0
 
 (*****************************************************************************)
+(* {4-tuple utils}                                                           *)
+(*****************************************************************************)
+
+let map_4tuple f (a, b, c, d) = (f a, f b, f c, f d)
+
+(** Maps a function across two 4-tuples *)
+let map_4tuple2 f (a1, b1, c1, d1) (a2, b2, c2, d2) = 
+  (f a1 a2, f b1 b2, f c1 c2, f d1 d2)
+
+
+(*****************************************************************************)
 (* {point utils}                                                             *)
 (*****************************************************************************)
 
@@ -111,8 +122,20 @@ let valid_initial_moves (g: GameType.t) : line list =
 (*returns a list of lines where a particular player can build roads*)
 
 
+
+(******************************************************************************)
+(** {Match utils}                                                             *)
+(******************************************************************************)
+
+(* Returns the number of the number of victory points a settlement is worth*)
+let settlement_num_vp (set : settlement) : int =
+  match set with
+    | Town -> cVP_TOWN
+    | City -> cVP_CITY 
+
+
 (*****************************************************************************)
-(* {resource generation utils}                                                             *)
+(* {resource generation utils}                                               *)
 (*****************************************************************************)
 
 let player_index (c: color) = 
@@ -166,3 +189,50 @@ let resource_gen g roll =
       list_indices_of p g.board.map.hexes
   in List.fold_left (supply_resources g) zero_cost_lst gen_hex_indices
 
+(*****************************************************************************)
+(* {victory point utils}                                                     *)
+(*****************************************************************************)
+let calc_hand_vp cards =
+    let value = function
+      | VictoryPoint -> cVP_CARD
+      | _ -> 0
+    in
+    let f acc e = acc + (value e) in
+      List.fold_left f 0 cards 
+
+let calc_vp s : (int * int * int * int) =
+  let ((_, (setts,_), _, _, _), players, _,_) = s in
+  let calc_sett_vp = function
+    | None -> (0, 0, 0, 0) 
+    | Some (Blue, sett) -> (settlement_num_vp sett, 0, 0, 0)
+    | Some (Red, sett) -> (0, settlement_num_vp sett, 0, 0)
+    | Some (Orange, sett) -> (0, 0, settlement_num_vp sett, 0)
+    | Some (White, sett) -> (0, 0, 0, settlement_num_vp sett)
+  in 
+  let sett_vps = 
+    let f (vpb, vpr, vpo, vpw) e = 
+      let (e_vpb, e_vpr, e_vpo, e_vpw) = calc_sett_vp e in
+        (vpb + e_vpb, vpr + e_vpr, vpo + e_vpo, vpw + e_vpw)
+    in
+    List.fold_left f (0, 0, 0, 0) setts
+  in
+  let player_vps = 
+    let player_vp (color,(_, cards),(_, lr, la)) = 
+      let card_vp =
+        match cards with
+        | Hidden n -> failwith "this shouldn't fail"
+        | Reveal cs -> calc_hand_vp cs
+      in
+      let lr_vp = if lr then cVP_LONGEST_ROAD else 0 in
+      let la_vp = if la then cVP_LARGEST_ARMY else 0 in
+      let tot_vp = card_vp + lr_vp + la_vp in
+        match color with
+        | Blue -> (tot_vp, 0, 0, 0)
+        | Orange -> (0, tot_vp, 0, 0)
+        | Red -> (0, 0, tot_vp, 0)
+        | White -> (0, 0, 0, tot_vp)
+    in
+    let f acc e = map_4tuple2 (+) acc (player_vp e) in
+      List.fold_left f (0,0,0,0) players
+  in
+  map_4tuple2 (+) sett_vps player_vps
