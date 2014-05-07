@@ -99,6 +99,18 @@ let map_4tuple2 f (a1, b1, c1, d1) (a2, b2, c2, d2) =
 (*****************************************************************************)
 let fold_5tuple f acc (a,b,c,d,e) = List.fold_left f acc [a;b;c;d;e]
 
+(*****************************************************************************)
+(* {cost utils}                                                              *)
+(*****************************************************************************)
+
+let resources_in_inv (b,w,o,g,l) =
+  let tmp_1 = if b > 0 then [Brick] else [] in
+  let tmp_2 = if w > 0 then Wool::tmp_1 else tmp_1 in
+  let tmp_3 = if o > 0 then Ore::tmp_2 else tmp_2 in
+  let tmp_4 = if g > 0 then Grain::tmp_3 else tmp_3 in
+    if l > 0 then Lumber::tmp_4 else tmp_4
+
+
 (******************************************************************************)
 (** {Match utils}                                                             *)
 (******************************************************************************)
@@ -592,13 +604,6 @@ let calc_vp (g: GameType.t) : (int * int * int * int) =
 (*****************************************************************************)
 
 let valid_trade_helper g (id, cost1, cost2) = 
-    let rec_to_tuple r = (r.bricks, r.wool, r.ore, r.grain, r.lumber) in
-    let inv g c = 
-      match c with 
-      | Blue -> rec_to_tuple g.blue.inventory
-      | Red -> rec_to_tuple g.red.inventory
-      | Orange -> rec_to_tuple g.orange.inventory
-      | White -> rec_to_tuple g.white.inventory in
     let f_or_t (b1, b2, b3, b4, b5) = b1 && b2 && b3 && b4 && b5 in
     let owns g c t = f_or_t (map_cost2 (>=) (inv g c) t) in
     (owns g g.turn.active cost1) && (owns g id cost2)
@@ -746,7 +751,7 @@ let brick_trades my_c my_inv players =
   let players_with_bricks =
     let p (c, (i, _), _) = 
       let temp = (map_cost2 (>=) i (single_resource_cost Brick)) in
-        (c <> my_c) && (fold_5tuple (||) false temp)
+        (c <> my_c) && (fold_5tuple (&&) true temp)
     in
       List.filter p players
   in 

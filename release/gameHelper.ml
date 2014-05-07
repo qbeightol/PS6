@@ -158,25 +158,29 @@ let ratio_helper (blue, red, orange, white) settlements ports =
 let robber_helper g (p, c_opt) =
 
 	let rob g2 robber_color victim_color = 
-    (*change the resource list to reflect the resources that a player has
-    if there aren't any resources don't attempt to steal from a player*)
-	  let resource_opt = pick_random [Brick; Wool; Ore; Lumber; Grain] in
-	  let resource = get_some resource_opt in
-	  let r_inv = inv g robber_color in
-	  let v_inv = inv g victim_color in
-	  let new_r_inv = modify_resource g succ resource (to_resource_rec r_inv) in
-	  let new_v_inv = modify_resource g pred resource (to_resource_rec v_inv) in
-	  let new_r = set_inventory (player g robber_color) new_r_inv in
-	  let new_v = set_inventory (player g victim_color) new_v_inv in
-	  let g' = set_color g robber_color new_r in 
-		set_color g' victim_color new_v in
-	
+    let r_inv = inv g2 robber_color in
+    let v_inv = inv g2 victim_color in
+    let v_resources = resources_in_inv v_inv in
+      if v_resources = [] then
+        g2
+      else 
+    	  let resource_opt = pick_random v_resources in
+    	  let resource = get_some resource_opt in
+        let r_inv_rec = to_resource_rec r_inv in
+        let v_inv_rec = to_resource_rec v_inv in
+    	  let new_r_inv = modify_resource g2 succ resource (r_inv_rec) in
+    	  let new_v_inv = modify_resource g2 pred resource (v_inv_rec) in
+    	  let new_r = set_inventory (player g2 robber_color) new_r_inv in
+    	  let new_v = set_inventory (player g2 victim_color) new_v_inv in
+    	  let g' = set_color g2 robber_color new_r in 
+    		  set_color g' victim_color new_v 
+  in
 	let game2 = {g with next = (g.turn.active, ActionRequest); 
-			board = {g.board with robber = p}} in
-
-	match c_opt with
-	| None -> game2
-	| Some c -> rob game2 (g.turn.active) c
+			                board = {g.board with robber = p}} 
+  in
+  	match c_opt with
+  	| None -> game2
+  	| Some c -> rob game2 (g.turn.active) c
 
 
 
@@ -253,32 +257,23 @@ let discard_helper g (b, w, o, gr, l) =
     the trade if false). Then return control to the active player.*)
 let trade_helper g b =
 	match b with
-	| false -> {g with turn = {g.turn with pendingtrade = None}; 
+	| false -> 
+    {g with turn = {g.turn with pendingtrade = None}; 
 							next = (g.turn.active, ActionRequest)}
 	| true -> (* return g with items exchanged in pendingTrade and new action request *)
 		(* {g with next = (g.turn.active, ActionRequest)} *) 
-		let (id, active_cost, id_cost) = get_some g.turn.pendingtrade in
-		let (b, w, o, gr, l) = active_cost in
-		let (b', w', o', gr', l') = id_cost in
-
-	let trade' g2 act_color id_color res sub add = 
-
-	  let a_inv = inv g act_color in
-	  let id_inv = inv g id_color in
-	  let new_a_inv = modify_resource g (fun x -> x - sub + add) res (to_resource_rec a_inv) in
-	  let new_id_inv = modify_resource g (fun x -> x + sub - add) res (to_resource_rec id_inv) in
-	  let new_a = set_inventory (player g act_color) new_a_inv in
-	  let new_id = set_inventory (player g id_color) new_id_inv in
-	  let g' = set_color g act_color new_a in 
-		set_color g' id_color new_id in
-
-	let gb = trade' g g.turn.active id Brick b b' in
-	let gw = trade' gb g.turn.active id Wool w w' in
-	let go = trade' gw g.turn.active id Brick o o' in
-	let gl = trade' go g.turn.active id Brick l l' in
-	let gg = trade' gl g.turn.active id Brick gr gr' in
-
-	{gg with turn = {g.turn with pendingtrade = None}; next = (g.turn.active, ActionRequest)}
+    let (id_color, a_cost, id_cost) =get_some g.turn.pendingtrade in
+    let a_color = g.turn.active in
+    let a_inv = inv g a_color in
+    let id_inv = inv g id_color in
+    let new_a_inv = map_cost2 (+) (map_cost2 (-) a_inv a_cost) id_cost in
+    let new_id_inv = map_cost2 (+) (map_cost2 (-) id_inv id_cost) a_cost in
+    let new_a = set_inventory (player g a_color) (to_resource_rec new_a_inv) in
+    let new_id = set_inventory (player g id_color) (to_resource_rec new_id_inv) in
+    let g' = set_color g a_color new_a in
+    let g'' = set_color g' id_color new_id in
+      {g'' with turn = {g.turn with pendingtrade = None}; 
+                next = (a_color, ActionRequest)}
 
 
 (*take away r_sold from the active player and give them r_bought.*)
@@ -310,7 +305,7 @@ let maritime_helper g (r_sold, r_bought) =
 
 (* next = trade request to other player, increase tradesmade, update pendingtrade *)
 let domestic_helper g (other_player, active_player_cost, other_player_cost) =
-	{g with next = (g.turn.active, TradeRequest); 
+	{g with next = (other_player, TradeRequest); 
 		turn = {g.turn with tradesmade = (g.turn.tradesmade + 1);
 							pendingtrade = (Some (other_player, active_player_cost, other_player_cost))
 						}

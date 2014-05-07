@@ -56,9 +56,26 @@ let handle_move g m =
         match req with
         | InitialRequest -> 
           InitialMove (get_some (pick_random (valid_initial_moves g)))
-        | RobberRequest -> failwith "not implemented" (*robber_helper g*)
-        | DiscardRequest -> failwith "not implemented" (*discard_helper g*)
-        | TradeRequest -> failwith "not implemented" (*trade_helper g*)
+        | RobberRequest -> 
+          RobberMove (get_some (pick_random (valid_robber_moves g)))
+        | DiscardRequest -> 
+          let (b, w, o, g, l) = inv g c in
+          let mkd_inv = ((Brick, b), (Wool, w), (Ore, o), (Grain, g), (Lumber, l)) in
+          let f acc (r, c) = (list_gen c r)::acc in
+          let discard_list = List.flatten (fold_5tuple f [] mkd_inv) in
+          let qty_to_discard = (b+w+o+g+l)/2 in
+          let rec loop n d_list = 
+            if n = 0 then [] 
+            else 
+              let (d, rem_d_list) = pick_one d_list in 
+                d::(loop (n-1) rem_d_list)
+          in
+          let discards = loop qty_to_discard discard_list in
+          let costs = List.map single_resource_cost discards in
+          let tot_cost = List.fold_left (map_cost2 (+)) (0,0,0,0,0) costs in
+            DiscardMove tot_cost
+        | TradeRequest -> 
+          TradeResponse (get_some (pick_random [true; false]))
         | ActionRequest ->
           if is_none g.turn.dicerolled then Action(RollDice) 
                                        else Action(EndTurn)
@@ -82,29 +99,6 @@ let handle_move g m =
               | Some color -> 
                 {g with turn = {g.turn with dicerolled = Some roll};
                         next = (color, DiscardRequest)}
-
-
-              (*part of A2*)
-              (*handle discards and moving the robber
-                i.e.
-                + issue discard requests to any player that has more than 
-                  cMAX_HAND_SIZE cards
-                + ask the active player to move the robber
-
-                This is kind of tricky since you'll need to handle multiple 
-                discard requests. You'll need to issue one discard request
-                or robber request right away, and if they're are other requests
-                that need to be served, you'll need to add logic to the 
-                DiscardMove match statement that handle those requests.
-                (But I'm pretty certain that 
-                discard moves are only made when the robber is rolled. So 
-                implementing that logic might be as simple as checking--within
-                the DiscardMove match statement--whether any players have more
-                than the maximum hand size. If someone does, issue them a 
-                discard request. Otherwise, ask the active player to move the
-                robber. NOTE: DON'T CHANGE THE ACTIVE PLAYER WHEN ISSUING
-                DISCARD REQUESTS)
-              *)
             else resource_gen g roll
         | MaritimeTrade x -> maritime_helper g x
         | DomesticTrade x -> domestic_helper g x
@@ -122,7 +116,7 @@ let handle_move g m =
               next = (next_p, ActionRequest)}
       end
   in 
-  print_update g.turn.active m (state_of_game updated_game);
+  print_update g.turn.active move (state_of_game updated_game);
   (None, updated_game) 
 
 
