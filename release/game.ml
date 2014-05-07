@@ -123,7 +123,7 @@ let handle_move g m =
       end
   in 
   print_update g.turn.active m (state_of_game updated_game);
-  (None, updated_game) 
+  is_winner g updated_game
 
 
 let presentation g =

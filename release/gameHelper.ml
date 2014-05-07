@@ -156,28 +156,8 @@ let ratio_helper (blue, red, orange, white) settlements ports =
     the board's robber location to p. Then remove a random resource from
     the player with color c_opt and give it to the active player *)
 let robber_helper g (p, c_opt) =
-
-	let rob g2 robber_color victim_color = 
-    (*change the resource list to reflect the resources that a player has
-    if there aren't any resources don't attempt to steal from a player*)
-	  let resource_opt = pick_random [Brick; Wool; Ore; Lumber; Grain] in
-	  let resource = get_some resource_opt in
-	  let r_inv = inv g robber_color in
-	  let v_inv = inv g victim_color in
-	  let new_r_inv = modify_resource g succ resource (to_resource_rec r_inv) in
-	  let new_v_inv = modify_resource g pred resource (to_resource_rec v_inv) in
-	  let new_r = set_inventory (player g robber_color) new_r_inv in
-	  let new_v = set_inventory (player g victim_color) new_v_inv in
-	  let g' = set_color g robber_color new_r in 
-		set_color g' victim_color new_v in
-	
-	let game2 = {g with next = (g.turn.active, ActionRequest); 
-			board = {g.board with robber = p}} in
-
-	match c_opt with
-	| None -> game2
-	| Some c -> rob game2 (g.turn.active) c
-
+	robbing g (p, c_opt)
+	(* also need to discard half of resources from player with >7 resources *)
 
 
 let initial_helper g (pt1, pt2) = 
@@ -333,37 +313,66 @@ let buyBuild_helper g b =
 	let gg = b_road gl g.turn.active Grain gr in 
 	let g' = { gg with next = (g.turn.active, ActionRequest)} in
 
+ 	let player' = match g.turn.active with 
+		| Blue -> g.blue
+		| White -> g.white
+		| Red -> g.red
+		| Orange -> g.orange in
+
   match b with
-  | BuildRoad rd -> (* build the road on board
+  | BuildRoad (c, (p1, p2)) -> (* build the road on board
   		check length of longest road, award trophy and 2 VPs if necessary, check if winner *)
 		begin 
-			g'
+			let g'' = build_road g' c (p1, p2) in
+			let rds = g''.board.structures.roads in
+			let inters = g''.board.structures.settlements in 
+			let length = longest_road c rds inters in
+			let max1 = max (max (longest_road Blue rds inters) (longest_road White rds inters)) 
+						(max (longest_road Red rds inters) (longest_road Orange rds inters)) in
+			if (length >  max1) && (length <> max1) && (length >= cMIN_LONGEST_ROAD) 
+				&& (player'.longestroad = false) then 
+			set_color g'' c (set_longest_road player' true) else g''
 		end 
-
-  | BuildTown pt -> (* build town on board, award 1 VP, check if winner else ActionRequest *)
-		begin 
-			g'
-		end 
-
-  | BuildCity pt -> (* build city on board, award 2 VPs, check if winner *)
-  		failwith "not implemented"
+  | BuildTown pt -> build_town g' g.turn.active pt
+  | BuildCity pt -> build_city g' g.turn.active pt 
   | BuildCard -> (* add to active player's cards (random card), remove card from board deck *)
-  		(* let rancrd = pick_random (get_reveal g.board.deck) in 
-  		let crdlst = get_reveal player.cards in
-  		set_color g' g.turn.active (player with cards = randcrd::crdlst) *)
-			failwith "not compiling"
+  		let rancrd = get_some (pick_random (get_reveal g.board.deck)) in 
+  		set_color g' g.turn.active (set_cards player' (append_card g.board.deck rancrd))
 
-(* play card, update victory points and trophies *)
+
+(* play card, update trophies *)
 let playCard_helper g pc =
 	let g' = {g with next = (g.turn.active, ActionRequest); 
 			turn = {g.turn with cardplayed = true}} in
-  begin
-    match pc with
-    | PlayKnight r -> g' (* check victory points and trophy, update player's cards *)
-    | PlayRoadBuilding (rd, rd_o) -> failwith "not implemented" (* build road, VPs, trophy, update cards*)
-    | PlayYearOfPlenty (r, r_o) -> failwith "not implemented" (* update player's inventory and cards *)
-    | PlayMonopoly r -> failwith "not implemented" (* update all inventory, update player's cards *)
-  end 
+
+	let player' = match g.turn.active with 
+		| Blue -> g.blue
+		| White -> g.white
+		| Red -> g.red
+		| Orange -> g.orange in
+
+  match pc with
+  | PlayKnight (p, c_opt) -> (* update trophy, update player's cards *)
+  		let crds = reveal g.board.deck in
+  		let rmv = list_memremove (fun x -> x = Knight) crds in
+  		let g'' = set_color g' g.turn.active (set_cards player' (wrap_reveal rmv)) in
+  		let gg = set_color g'' g.turn.active (set_knights player' (player'.knights + 1)) in
+  		let g2 = if player'.knights >= cMIN_LARGEST_ARMY then 
+  			set_color gg g.turn.active (set_largestarmy player' true) else gg in
+  		robbing g2 (p, c_opt)
+
+  		
+  | PlayRoadBuilding (rd, rd_o) -> failwith "not implemented" (* build road, VPs, trophy, update cards*)
+  | PlayYearOfPlenty (r, r_o) -> failwith "not implemented" (* update player's inventory and cards *)
+  | PlayMonopoly r -> failwith "not implemented" (* update all inventory, update player's cards *)
+
+
+let is_winner g updated_game = let (bl, re, ora, wh) = calc_vp g in 
+	if bl >= cWIN_CONDITION then (Some Blue, updated_game)
+	else if re >= cWIN_CONDITION then (Some Red, updated_game)
+	else if ora >= cWIN_CONDITION then (Some Orange, updated_game)
+	else if wh >= cWIN_CONDITION then (Some White, updated_game)
+	else (None, updated_game)
 
 let present_player_info active_color player_color player =
   { inventory = player.inventory;

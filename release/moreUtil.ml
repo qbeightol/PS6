@@ -698,6 +698,29 @@ let player g c =
     | Blue -> g.blue
     | Orange -> g.orange
 
+let robbing g (p, c_opt) =
+
+  let rob g2 robber_color victim_color = 
+    (*change the resource list to reflect the resources that a player has
+    if there aren't any resources don't attempt to steal from a player*)
+    let resource_opt = pick_random [Brick; Wool; Ore; Lumber; Grain] in
+    let resource = get_some resource_opt in
+    let r_inv = inv g robber_color in
+    let v_inv = inv g victim_color in
+    let new_r_inv = modify_resource g succ resource (to_resource_rec r_inv) in
+    let new_v_inv = modify_resource g pred resource (to_resource_rec v_inv) in
+    let new_r = set_inventory (player g robber_color) new_r_inv in
+    let new_v = set_inventory (player g victim_color) new_v_inv in
+    let g' = set_color g robber_color new_r in 
+    set_color g' victim_color new_v in
+  
+  let game2 = {g with next = (g.turn.active, ActionRequest); 
+      board = {g.board with robber = p}} in
+
+  match c_opt with
+  | None -> game2
+  | Some c -> rob game2 (g.turn.active) c
+
 (*****************************************************************************)
 (* {card playing utils}                                                      *)
 (*****************************************************************************)
