@@ -19,7 +19,7 @@ let validmove g m =
 	| RobberRequest ->
 		begin
 			match m with
-			| RobberMove (p, c) -> (p >= 0) && (p < 19)
+			| RobberMove (p, c) -> List.mem (p,c) (valid_robber_moves g)
 			| _ -> false
 		end
 	| DiscardRequest -> 
@@ -94,10 +94,20 @@ let validmove g m =
 								| White -> rec_to_tuple g.white.inventory in
 							let f_or_t (b1, b2, b3, b4, b5) = b1 && b2 && b3 && b4 && b5 in
 							let owns g c t = f_or_t (map_cost2 (>=) (inv g c) t) in
-							(owns g g.turn.active cost1) 
+							(owns g g.turn.active cost1) && (
+							match b with 
+							| BuildRoad (c, l) -> List.mem l (c_buildable_roads g c)
+		          | BuildTown point -> List.mem point (c_buildable_towns g g.turn.active)
+		          | BuildCity point -> List.mem point (c_buildable_cities g g.turn.active) 
+							| BuildCard -> (List.length (get_reveal g.board.deck)) > 0 )
 						end
-			    | PlayCard pc -> (match pc with 
+			    (* need to also check that player has card in hand *)
+			    | PlayCard pc -> 
+			    		(* let crd = get_reveal player.cards in (List.mem pc crd) && ---why doesn't it work...*)
+
+			    (not g.turn.cardplayed) && (match pc with 
 			  		| PlayKnight r -> true
+			  		| PlayRoadBuilding (a, x) -> not g.turn.cardplayed 
 			  		| _ -> (g.turn.dicerolled <> None))
 			    | EndTurn -> (g.turn.dicerolled <> None)
 			  end
@@ -145,35 +155,28 @@ let ratio_helper (blue, red, orange, white) settlements ports =
 	(* change 
     the board's robber location to p. Then remove a random resource from
     the player with color c_opt and give it to the active player *)
-let robber_helper g (p, c_opt) = failwith "will implement"
-(* 	let modify_resource g f resource inv =
-  match resource with
-  | Brick -> {inv with bricks = (f inv.bricks)}
-  | Wool -> {inv with wool = (f inv.wool)}
-  | Ore -> {inv with ore = (f inv.ore)}
-  | Lumber -> {inv with lumber = (f inv.lumber)}
-  | Grain -> {inv with lumber = (f inv.grain)}
-
-let rob g robber_color victim_color = 
-  let resource = pick_random [Brick; Wool; Ore; Lumber; Grain] in
-  let r_inv = inv g robber_color in
-  let v_inv = inv g vitim_color in
-  let new_r_inv = modify_resource g succ r_inv in
-  let new_v_inv = modify_resource g pred v_inv in
-  let new_r = set_inventory (*function that takes a color and returns a player record*) new_r_inv in
-  let new_v = set_inventory ... new_v_inv in
-  let g' = set_color g robber_color new_r in 
-    set_color g' victim_color new_v
-
-
-(*
 let robber_helper g (p, c_opt) =
-  match c_opt with
-  | None -> ...
-  | Some c -> rob g g.turn.activeplayer c
 
-*) *)
-			
+	let rob g2 robber_color victim_color = 
+	  let resource_opt = pick_random [Brick; Wool; Ore; Lumber; Grain] in
+	  let resource = get_some resource_opt in
+	  let r_inv = inv g robber_color in
+	  let v_inv = inv g victim_color in
+	  let new_r_inv = modify_resource g succ resource (to_resource_rec r_inv) in
+	  let new_v_inv = modify_resource g pred resource (to_resource_rec v_inv) in
+	  let new_r = set_inventory (player g robber_color) new_r_inv in
+	  let new_v = set_inventory (player g victim_color) new_v_inv in
+	  let g' = set_color g robber_color new_r in 
+		set_color g' victim_color new_v in
+	
+	let game2 = {g with next = (g.turn.active, ActionRequest); 
+			board = {g.board with robber = p}} in
+
+	match c_opt with
+	| None -> game2
+	| Some c -> rob game2 (g.turn.active) c
+
+
 
 (*  Subtracting c from the current player *)
 let discard_helper g (b, w, o, gr, l) = 
@@ -220,64 +223,116 @@ let discard_helper g (b, w, o, gr, l) =
     the trade if false). Then return control to the active player.*)
 let trade_helper g b =
 	match b with
-	| false -> {g with next = (g.turn.active, ActionRequest)}
+	| false -> {g with turn = {g.turn with pendingtrade = None}; 
+							next = (g.turn.active, ActionRequest)}
 	| true -> (* return g with items exchanged in pendingTrade and new action request *)
-		(* {g with next = (g.turn.active, ActionRequest)} *) failwith "too much matching?"
+		(* {g with next = (g.turn.active, ActionRequest)} *) 
+		let (id, active_cost, id_cost) = get_some g.turn.pendingtrade in
+		let (b, w, o, gr, l) = active_cost in
+		let (b', w', o', gr', l') = id_cost in
+
+	let trade' g2 act_color id_color res sub add = 
+
+	  let a_inv = inv g act_color in
+	  let id_inv = inv g id_color in
+	  let new_a_inv = modify_resource g (fun x -> x - sub + add) res (to_resource_rec a_inv) in
+	  let new_id_inv = modify_resource g (fun x -> x + sub - add) res (to_resource_rec id_inv) in
+	  let new_a = set_inventory (player g act_color) new_a_inv in
+	  let new_id = set_inventory (player g id_color) new_id_inv in
+	  let g' = set_color g act_color new_a in 
+		set_color g' id_color new_id in
+
+	let gb = trade' g g.turn.active id Brick b b' in
+	let gw = trade' gb g.turn.active id Wool w w' in
+	let go = trade' gw g.turn.active id Brick o o' in
+	let gl = trade' go g.turn.active id Brick l l' in
+	let gg = trade' gl g.turn.active id Brick gr gr' in
+
+	{gg with turn = {g.turn with pendingtrade = None}; next = (g.turn.active, ActionRequest)}
+
 
 (*take away r_sold from the active player and give them r_bought.*)
-let maritime_helper g (r_sold, r_bought) = failwith "too much matching?"
-(* 	match g.turn.active with
-	| Blue -> {g with blue = {g.blue with inventory = 
-					{ g.blue.inventory with 
-						bricks = (g.blue.inventory.r_sold - g.blue.ratio.r_sold);
-						wool = (g.blue.inventory.r_bought + 1) }
-			}	}
-	| Red -> {g with red = {g.red with inventory = 
-					{ g.red.inventory with 
-						r_sold = (g.red.inventory.r_sold - g.red.ratio.r_sold);
-						r_bought = (g.red.inventory.r_bought + 1) }
-			}	}
-	| Orange -> {g with orange = {g.orange with inventory = 
-					{ g.orange.inventory with 
-						r_sold = (g.orange.inventory.r_sold - g.orange.ratio.r_sold);
-						r_bought = (g.orange.inventory.r_bought + 1) }
-			}	}
-	| White -> {g with white = {g.white with inventory = 
-					{ g.white.inventory with 
-						r_sold = (g.white.inventory.r_sold - g.white.ratio.r_sold);
-						r_bought = (g.white.inventory.r_bought + 1) }
-			}	} *)
+let maritime_helper g (r_sold, r_bought) = 
+	let player' = match g.turn.active with
+		| Blue -> g.blue
+		| White -> g.white
+		| Red -> g.red
+		| Orange -> g.orange in
+	let (b, w, o, gr, l) = resource_rec_to_tuple (player'.ratio) in
+	let ns = match r_sold with
+		| Brick -> b
+		| Wool -> w
+		| Ore -> o
+		| Grain -> gr
+		| Lumber -> l in
+	let mar g2 act_color r_sold r_bought nsold = 
+	  let a_inv = inv g act_color in
+	  let id_inv = inv g act_color in
+	  let new_a_inv = modify_resource g (fun x -> x - nsold) r_sold (to_resource_rec a_inv) in
+	  let new_id_inv = modify_resource g succ r_bought (to_resource_rec id_inv) in
+	  let new_a = set_inventory (player g act_color) new_a_inv in
+	  let new_id = set_inventory (player g act_color) new_id_inv in
+	  let g' = set_color g act_color new_a in 
+		set_color g' act_color new_id in
+
+	let gm = mar g g.turn.active r_sold r_bought ns in
+	{gm with next = (g.turn.active, ActionRequest)}
 
 (* next = trade request to other player, increase tradesmade, update pendingtrade *)
 let domestic_helper g (other_player, active_player_cost, other_player_cost) =
-        failwith "error"
+	{g with next = (g.turn.active, TradeRequest); 
+		turn = {g.turn with tradesmade = (g.turn.tradesmade + 1);
+							pendingtrade = (Some (other_player, active_player_cost, other_player_cost))
+						}
+	}
         
 
 (* buy build, update victory points and trophies *)
 let buyBuild_helper g b =
 (*   let (br, w, o, gr, l) = cost_of_build b in *)
+  let (br, w, o, gr, l) = cost_of_build b in
+	let b_road g2 act_color res nres = 
+	  let a_inv = inv g act_color in
+	  let new_a_inv = modify_resource g (fun x -> x - nres) res (to_resource_rec a_inv) in
+	  let new_a = set_inventory (player g act_color) new_a_inv in
+	  set_color g act_color new_a in 
+	let gb = b_road g g.turn.active Brick br in 
+	let gw = b_road gb g.turn.active Wool w in 
+	let go = b_road gw g.turn.active Ore o in 
+	let gl = b_road go g.turn.active Lumber l in 
+	let gg = b_road gl g.turn.active Grain gr in 
+	let g' = { gg with next = (g.turn.active, ActionRequest)} in
+
   match b with
-  | BuildRoad rd -> (* update inventory - cost of build, next is ActionRequest, 
+  | BuildRoad rd -> (* build the road on board
   		check length of longest road, award trophy and 2 VPs if necessary, check if winner *)
-			let lines = remaining_road_locs g in
-			if lines = lines then g else g (* fill in *)
-  | BuildTown pt -> (* update inventory - cost of build,
-  		award 1 VP, check if winner else ActionRequest *)
+		begin 
+			g'
+		end 
+
+  | BuildTown pt -> (* build town on board, award 1 VP, check if winner else ActionRequest *)
+		begin 
+			g'
+		end 
+
+  | BuildCity pt -> (* build city on board, award 2 VPs, check if winner *)
   		failwith "not implemented"
-  | BuildCity pt -> (* update inventory - cost of build, next is ActionRequest,
-  		award 2 VPs, check if winner *)
-  		failwith "not implemented"
-  | BuildCard -> (* update inventory - cost of build, add to active player's cards *)
-  		failwith "not implemented"
+  | BuildCard -> (* add to active player's cards (random card), remove card from board deck *)
+  		(* let rancrd = pick_random (get_reveal g.board.deck) in 
+  		let crdlst = get_reveal player.cards in
+  		set_color g' g.turn.active (player with cards = randcrd::crdlst) *)
+			failwith "not compiling"
 
 (* play card, update victory points and trophies *)
 let playCard_helper g pc =
+	let g' = {g with next = (g.turn.active, ActionRequest); 
+			turn = {g.turn with cardplayed = true}} in
   begin
     match pc with
-    | PlayKnight r -> failwith "not implemented"
-    | PlayRoadBuilding (rd, rd_o) -> failwith "not implemented"
-    | PlayYearOfPlenty (r, r_o) -> failwith "not implemented"
-    | PlayMonopoly r -> failwith "not implemented"
+    | PlayKnight r -> g' (* check victory points and trophy, update player's cards *)
+    | PlayRoadBuilding (rd, rd_o) -> failwith "not implemented" (* build road, VPs, trophy, update cards*)
+    | PlayYearOfPlenty (r, r_o) -> failwith "not implemented" (* update player's inventory and cards *)
+    | PlayMonopoly r -> failwith "not implemented" (* update all inventory, update player's cards *)
   end 
 
 let present_player_info active_color player_color player =

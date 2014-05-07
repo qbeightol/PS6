@@ -13,6 +13,10 @@ gameHelper).*)
 
 let is_some o = not (is_none o)
 
+(** Unwraps Reveal (x) -> x, fails on Hidden *)
+let get_reveal = function
+  Reveal x -> x | Hidden i -> failwith "tried to get_reveal of cards"
+
 (*****************************************************************************)
 (* {list utils}                                                              *)
 (*****************************************************************************)
@@ -331,6 +335,12 @@ let set_inventory pr new_inv =
     ratio = pr.ratio
   }
 
+let set_color g c new_c = match c with
+  | Blue -> {g with blue = new_c}
+  | Red -> {g with red = new_c}
+  | White -> {g with white = new_c}
+  | Orange -> {g with orange = new_c}
+
 let set_cards pr new_cards =
   { inventory = pr.inventory;
     cards = new_cards;
@@ -599,3 +609,23 @@ let game_of_state ((map, structs, deck, discard, robber), plist, turn, next) =
     turn = turn; 
     next = next
   }
+
+
+(*****************************************************************************)
+(* {trade utils}                                              *)
+(*****************************************************************************)
+
+let modify_resource g2 f resource inv =
+    match resource with
+    | Brick -> {inv with bricks = (f inv.bricks)}
+    | Wool -> {inv with wool = (f inv.wool)}
+    | Ore -> {inv with ore = (f inv.ore)}
+    | Lumber -> {inv with lumber = (f inv.lumber)}
+    | Grain -> {inv with lumber = (f inv.grain)} 
+
+let player g c = 
+    match c with
+    | White -> g.white
+    | Red -> g.red
+    | Blue -> g.blue
+    | Orange -> g.orange
