@@ -13,7 +13,7 @@ module Bot = functor (S : Soul) -> struct
 let initialize () = ()
 
 let handle_request (s : state) : move =
-  let (b, ps, t, n) = s in
+  let ((map, structs, deck, disc, robber), ps, t, n) = s in
   let (my_c, r) = n in
   let (_, (my_inv, my_cards), _) = 
     let p (c, (_, cards), _) = c = my_c in
@@ -63,10 +63,22 @@ let handle_request (s : state) : move =
       else viable_card_plays s my_c (reveal my_cards)
     in
     let play_c = (not t.cardplayed) && List.length viable_cards <> 0 in
-    let buy_r = fold_5tuple (&&) true (map_cost2 (>=) my_inv cCOST_ROAD) in
-    let buy_t = fold_5tuple (&&) true (map_cost2 (>=) my_inv cCOST_TOWN) in
-    let buy_cty = fold_5tuple (&&) true (map_cost2 (>=) my_inv cCOST_CITY) in
-    let buy_crd = fold_5tuple (&&) true (map_cost2 (>=) my_inv cCOST_CARD) in
+    let buildable_roads = c_buildable_roads (game_of_state s) my_c in
+    let pay_r = fold_5tuple (&&) true (map_cost2 (>=) my_inv cCOST_ROAD) in
+    let buy_r = List.length buildable_roads > 0 && pay_r in
+    let buildable_towns = c_buildable_towns (game_of_state s) my_c in
+    let pay_t = fold_5tuple (&&) true (map_cost2 (>=) my_inv cCOST_TOWN) in
+    let buy_t = List.length buildable_towns > 0 && pay_t in
+    let buildable_cities = c_buildable_cities (game_of_state s) my_c in
+    let pay_cty = fold_5tuple (&&) true (map_cost2 (>=) my_inv cCOST_CITY) in
+    let buy_cty = List.length buildable_cities > 0 && pay_cty in
+    let exists_card = 
+      match deck with
+      | Hidden n -> n > 0
+      | Reveal cs -> List.length cs > 0
+    in
+    let pay_crd = fold_5tuple (&&) true (map_cost2 (>=) my_inv cCOST_CARD) in
+    let buy_crd = exists_card && pay_crd in
     match (roll,trd_l,trd_b,play_c,buy_t,buy_r,buy_cty,buy_crd) with
     | (true, _, _, _, _, _, _, _) -> Action RollDice
     | (_, true, _, _, _, _, _, _) -> 
@@ -118,16 +130,19 @@ let handle_request (s : state) : move =
       end
     | (_, _, _, _, true, _, _, _) -> 
       (*buy a town*)
-      failwith "not implemented"
+      let build = get_some (pick_random buildable_towns) in
+        Action (BuyBuild (BuildTown build))
     | (_, _, _, _, _, true, _, _) -> 
       (*buy a road*)
-      failwith "not implemented"
+      let build = get_some (pick_random buildable_roads) in
+        Action (BuyBuild (BuildRoad (my_c, build)))
     | (_, _, _, _, _, _, true, _) -> 
       (*buy a city*)
-      failwith "not implemented"
+      let build = get_some (pick_random buildable_cities) in
+        Action (BuyBuild (BuildCity build))
     | (_, _, _, _, _, _, _, true) -> 
       (*buy a card*)
-      failwith "not implemented"
+      Action (BuyBuild (BuildCard))
     | _ ->
       (*nothing left to do*)
       Action EndTurn
