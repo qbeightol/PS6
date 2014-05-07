@@ -209,6 +209,7 @@ let valid_initial_moves (g: GameType.t) : line list =
   List.flatten (List.map adjacent_road_locs sett_locs)
 
 let valid_robber_moves g : (piece * color option) list =
+  let (stealing_color, _) = g.next in
   let robber_position = g.board.robber in
   let valid_points = piece_complement [robber_position] in
   let adjacent_colors pt = 
@@ -218,7 +219,9 @@ let valid_robber_moves g : (piece * color option) list =
       let sett_color = intersection_color e in
         match sett_color with
         | None -> acc
-        | c -> if List.mem c acc then acc else c::acc
+        | Some c -> 
+          let p = List.mem (Some c) acc || c = stealing_color in
+          if p then acc else (Some c)::acc
     in
     let temp = List.fold_left f [] possible_setts in
       if temp = [] then [None] else temp
@@ -229,6 +232,7 @@ let valid_robber_moves g : (piece * color option) list =
       (List.fold_left f' [] c_opts)@acc
   in 
     List.fold_left f [] valid_points
+
 
 
 (*returns a list of roads that c can build*)
@@ -280,8 +284,9 @@ let set_settlements g new_setts =
 let set_roads g new_roads =
   set_structures g {g.board.structures with roads = new_roads}
 
+
 (******************************************************************************)
-(** {build utils}                                                              *)
+(** {build utils}                                                             *)
 (******************************************************************************)
 
 (*returns an updated game type that now has a road of color c that streches 
@@ -443,6 +448,23 @@ let inv g c =
   | Orange -> resource_rec_to_tuple g.orange.inventory
   | White -> resource_rec_to_tuple g.white.inventory
 
+(******************************************************************************)
+(** {robber utils}                                                            *)
+(******************************************************************************)
+
+(*returns Some player that needs to discard resources, or None if no player 
+needs to discard*)
+let discard_player g =
+  let b_disc = (sum_cost (inv g Blue)) > cMAX_HAND_SIZE in
+  let r_disc = (sum_cost (inv g Red)) > cMAX_HAND_SIZE in
+  let o_disc = (sum_cost (inv g Orange)) > cMAX_HAND_SIZE in
+  let w_disc = (sum_cost (inv g White)) > cMAX_HAND_SIZE in
+    match (b_disc, r_disc, o_disc, w_disc) with
+    | (true, _, _, _) -> Some Blue
+    | (_, true, _, _) -> Some Red
+    | (_, _, true, _) -> Some Orange
+    | (_, _, _, true) -> Some White
+    | _ -> None
 
 (*****************************************************************************)
 (* {resource generation utils}                                               *)

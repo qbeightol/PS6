@@ -158,6 +158,8 @@ let ratio_helper (blue, red, orange, white) settlements ports =
 let robber_helper g (p, c_opt) =
 
 	let rob g2 robber_color victim_color = 
+    (*change the resource list to reflect the resources that a player has
+    if there aren't any resources don't attempt to steal from a player*)
 	  let resource_opt = pick_random [Brick; Wool; Ore; Lumber; Grain] in
 	  let resource = get_some resource_opt in
 	  let r_inv = inv g robber_color in
@@ -203,9 +205,14 @@ let initial_helper g (pt1, pt2) =
 
 (*  Subtracting c from the current player *)
 let discard_helper g (b, w, o, gr, l) = 
+  let next = 
+    match discard_player g with
+    | None -> (g.turn.active, RobberRequest)
+    | Some color -> (color, DiscardRequest)
+  in
 	match g.turn.active with 
 	| Blue -> 
-		{ g with next = (Blue, ActionRequest);
+		{ g with next = next;
 			blue = {g.blue with inventory = { 
 					bricks = (g.blue.inventory.bricks - b);
 					wool = (g.blue.inventory.wool - w);
@@ -214,7 +221,7 @@ let discard_helper g (b, w, o, gr, l) =
 					lumber = (g.blue.inventory.lumber - l)
 				} } }
 	| White ->
-		{ g with next = (White, ActionRequest);
+		{ g with next = next;
 			white = {g.white with inventory = { 
 					bricks = (g.white.inventory.bricks - b);
 					wool = (g.white.inventory.wool - w);
@@ -223,7 +230,7 @@ let discard_helper g (b, w, o, gr, l) =
 					lumber = (g.white.inventory.lumber - l)
 				} } }
 	| Red ->
-		{ g with next = (Red, ActionRequest);
+		{ g with next = next;
 			red = {g.red with inventory = { 
 					bricks = (g.red.inventory.bricks - b);
 					wool = (g.red.inventory.wool - w);
@@ -232,7 +239,7 @@ let discard_helper g (b, w, o, gr, l) =
 					lumber = (g.red.inventory.lumber - l)
 				} } }
 	| Orange ->
-		{ g with next = (Orange, ActionRequest);
+		{ g with next = next;
 			orange = {g.orange with inventory = { 
 					bricks = (g.orange.inventory.bricks - b);
 					wool = (g.orange.inventory.wool - w);

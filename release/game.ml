@@ -75,7 +75,16 @@ let handle_move g m =
         | RollDice -> 
           let roll = random_roll () in 
             if roll = cROBBER_ROLL then 
-              failwith "not implemented" (*part of A2*)
+              match discard_player g with
+              | None -> 
+                {g with turn = {g.turn with dicerolled = Some roll};
+                        next = (g.turn.active, RobberRequest)}
+              | Some color -> 
+                {g with turn = {g.turn with dicerolled = Some roll};
+                        next = (color, DiscardRequest)}
+
+
+              (*part of A2*)
               (*handle discards and moving the robber
                 i.e.
                 + issue discard requests to any player that has more than 
