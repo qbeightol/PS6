@@ -182,17 +182,21 @@ let initial_helper g (pt1, pt2) =
 	let (build_color, _) = g.next in
 	let g_with_road = build_road g build_color (pt1, pt2) in
 	let g_with_town = build_town g_with_road build_color pt1 in
-	let num_of_setts = List.length (remaining_sett_locs g_with_town) in
+	let num_of_setts = count_sett_locs g_with_town in
 		match num_of_setts with 
 		| 1 | 2 | 3 -> 
 			(*pass control to the next player*)
-			{g_with_town with next = (next_turn build_color, InitialRequest)}
+      let nxt_c = next_turn build_color in
+  			{g_with_town with turn = {g.turn with active = nxt_c};
+                          next = (nxt_c, InitialRequest)}
 		| 4 -> 
 			(*pass control to the current player*)
 			g_with_town
 		| 5 | 6 | 7  -> 
-			(*pass control to the previous player*)
-			{g_with_town with next = (prev_turn build_color, InitialRequest)}
+			(*pass control to the next player in reverse order*)
+      let nxt_c = prev_turn build_color in
+        {g_with_town with turn = {g.turn with active = nxt_c};
+                          next = (nxt_c, InitialRequest)}
 		| _ -> 
 			(*serve an action request to the first player*)
 			{g_with_town with next = (build_color, ActionRequest)}

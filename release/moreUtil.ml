@@ -55,6 +55,15 @@ let list_nths lst indices =
         else process lst_tl sorted_is (curr_i + 1)
     in process lst sorted_is 0
 
+let list_remove_duplicates lst =
+  let rec traverse processed remaining =
+    match remaining with
+    | [] -> []
+    | hd::tl -> 
+      if List.mem hd processed then traverse processed tl
+      else hd::(traverse (processed@[hd]) tl)
+  in traverse [] lst
+
 (*replaces the nth element of a list with e*)
 let list_replace_nth lst n e =
   if n < 0 then failwith "negative index"
@@ -122,7 +131,8 @@ let settlement_num_vp (set : settlement) : int =
 
 (*returns all the points on the board except for those in pts*)
 let point_complement (pts: point list) : point list = 
-  let sorted_pts = List.sort (compare) pts in
+  let no_dups = list_remove_duplicates pts in
+  let sorted_pts = List.sort (compare) no_dups in
   let rec loop sorted_pts n=
     if n<=53 then
       match sorted_pts with
@@ -133,6 +143,10 @@ let point_complement (pts: point list) : point list =
     else []
   in
   loop sorted_pts 0
+
+let count_sett_locs (g: GameType.t) : int =
+  let setts = List.filter is_some g.board.structures.settlements in
+    List.length setts
 
 (*returns a list of points where settlements can still be built*)
 let remaining_sett_locs (g: GameType.t) : point list = 
@@ -289,7 +303,7 @@ let build_town (g: GameType.t) (c: color) (p: point) =
   let intersections = g.board.structures.settlements in
   let intersection = List.nth intersections p in
   if is_some intersection then 
-    failwith "settlement already exists"
+    failwith ("settlement at "^(string_of_int p)^" already exists")
   else 
     let new_settlements = 
       list_replace_nth g.board.structures.settlements p (Some (c, Town)) 
@@ -472,9 +486,9 @@ let supply_resources g (other_rs: cost list) index =
     let (c, sett) = get_some sett_opt in(*will only be called on Some options*)
       let mult = settlement_num_resources sett in
       let resources_provided = (map_cost (( * ) mult) resource_provided) in 
-      add_resources c resources_provided other_rs
+        add_resources c resources_provided other_rs
   in
-  List.fold_left f zero_cost_lst nearby_setts
+  List.fold_left f other_rs nearby_setts
 
 (*returns a new game state where each player's resources have been appropriately
 updated.*)
@@ -497,7 +511,7 @@ let resource_gen g roll =
       red = set_inventory g.red (to_resource_rec new_r_inv);
       orange = set_inventory g.orange (to_resource_rec new_o_inv);
       white = set_inventory g.white (to_resource_rec new_w_inv);
-      turn = g.turn;
+      turn = {g.turn with dicerolled = Some roll};
       next = g.next
     }
 
@@ -687,7 +701,7 @@ let lumber_trades my_c my_inv players =
   let players_with_lumber =
     let p (c, (i, _), _) = 
       let temp = (map_cost2 (>=) i (single_resource_cost Lumber)) in
-        (c <> my_c) && (fold_5tuple (||) false temp)
+        (c <> my_c) && (fold_5tuple (&&) true temp)
     in
       List.filter p players
   in 

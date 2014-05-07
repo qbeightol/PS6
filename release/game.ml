@@ -48,7 +48,7 @@ let init_game () = game_of_state (gen_initial_state())
 
 
 (*cleaned up version of handle_move. Old code can be found below*)
-let handle_move g m = 
+let handle_move g m =
   let move = 
     if validmove g m then m
     else 
@@ -65,7 +65,7 @@ let handle_move g m =
   in
   let updated_game = 
     match move with
-    | InitialMove l -> failwith "not implemented"
+    | InitialMove l -> initial_helper g l
     | RobberMove x -> robber_helper g x
     | DiscardMove c -> discard_helper g c
     | TradeResponse b -> trade_helper g b
@@ -112,7 +112,9 @@ let handle_move g m =
               turn = next_t; 
               next = (next_p, ActionRequest)}
       end
-  in (None, updated_game) 
+  in 
+  print_update g.turn.active m (state_of_game updated_game);
+  (None, updated_game) 
 
 
 let presentation g =
