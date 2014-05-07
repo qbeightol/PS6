@@ -179,16 +179,23 @@ let robber_helper g (p, c_opt) =
 
 
 let initial_helper g (pt1, pt2) = 
-	(*place a settlement of the appropriate color ( (c,_) = g.next) at pt1 and
-	then a road of the appropriate color from pt1 to pt2. Then take a look at the
-	board to see how many people have made moves:
-		* if moves < 4 then ask the next player to make a move
-		* if moves = 4 ask the same player to make a move
-		* if 4 < moves < 8 then ask the previous player to make a move
-		* if moves = 8 start the game 
-		* I may want to fail if the number of moves manages to reach a number 
-			greater than 8*)
-	failwith "not implemented"
+	let (build_color, _) = g.next in
+	let g_with_road = build_road g build_color (pt1, pt2) in
+	let g_with_town = build_town g_with_road build_color pt1 in
+	let num_of_setts = List.length (remaining_sett_locs g_with_town) in
+		match num_of_setts with 
+		| 1 | 2 | 3 -> 
+			(*pass control to the next player*)
+			{g_with_town with next = (next_turn build_color, InitialRequest)}
+		| 4 -> 
+			(*pass control to the current player*)
+			g_with_town
+		| 5 | 6 | 7  -> 
+			(*pass control to the previous player*)
+			{g_with_town with next = (prev_turn build_color, InitialRequest)}
+		| _ -> 
+			(*serve an action request to the first player*)
+			{g_with_town with next = (build_color, ActionRequest)}
 
 (*  Subtracting c from the current player *)
 let discard_helper g (b, w, o, gr, l) = 

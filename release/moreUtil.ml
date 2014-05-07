@@ -94,8 +94,6 @@ let fold_5tuple f acc (a,b,c,d,e) = List.fold_left f acc [a;b;c;d;e]
 (** {Match utils}                                                             *)
 (******************************************************************************)
 
-
-
 let intersection_color i =
   match i with
   | None -> None
@@ -218,6 +216,7 @@ let valid_robber_moves g : (piece * color option) list =
   in 
     List.fold_left f [] valid_points
 
+
 (*returns a list of roads that c can build*)
 let c_buildable_roads (g: GameType.t) (c: color) : line list = 
   let rem_road_locs = remaining_road_locs g in
@@ -250,12 +249,71 @@ let c_buildable_cities (g: GameType.t) (c: color) : point list =
   let p i = is_intersection_town i && is_intersection_color c i in
   list_indices_of p g.board.structures.settlements
 
-
 (******************************************************************************)
 (** {game utils}                                                              *)
 (******************************************************************************)
 
 let set_blue g new_blue = {g with blue = new_blue}
+
+let set_board g new_board = {g with board = new_board}
+
+let set_structures g new_structures = 
+  set_board g {g.board with structures = new_structures}
+
+let set_settlements g new_setts =
+  set_structures g {g.board.structures with settlements = new_setts}
+
+let set_roads g new_roads =
+  set_structures g {g.board.structures with roads = new_roads}
+
+(******************************************************************************)
+(** {build utils}                                                              *)
+(******************************************************************************)
+
+(*returns an updated game type that now has a road of color c that streches 
+from p1 to p2
+checks whether a road from p1 to p2 already exists, and throughs a failure if
+one does*)
+let build_road (g: GameType.t) (c: color) ((p1: point), (p2: point)) = 
+  let p (color, (point1, point2)) = 
+    (point1 = p1 && point2 = p2) || (point1 = p2 && point2 = p1) 
+  in
+  if List.exists p g.board.structures.roads then
+    failwith "road already exists"
+  else
+    set_roads g ((c, (p1,p2))::g.board.structures.roads)
+
+(*builds a town of color c at point p
+fails if a town/city already exists at p*)
+let build_town (g: GameType.t) (c: color) (p: point) =
+  let intersections = g.board.structures.settlements in
+  let intersection = List.nth intersections p in
+  if is_some intersection then 
+    failwith "settlement already exists"
+  else 
+    let new_settlements = 
+      list_replace_nth g.board.structures.settlements p (Some (c, Town)) 
+    in
+      set_settlements g new_settlements
+
+(*builds a city of color c at point p
+succeeds only if a town exists at p and has the color c*)
+let build_city (g: GameType.t) (c: color) (p: point) =
+  let intersections = g.board.structures.settlements in
+  let intersection = List.nth intersections p in
+  let predicate = function
+    | Some (sett_c, Town) -> sett_c = c
+    | _ -> false
+  in
+  if not (predicate intersection) then 
+    failwith "invalid build_city location"
+  else 
+    let new_settlements = 
+      list_replace_nth g.board.structures.settlements p (Some (c, City)) 
+    in
+      set_settlements g new_settlements
+
+
 
 (******************************************************************************)
 (** {player utils}                                                            *)
