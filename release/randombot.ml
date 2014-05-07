@@ -25,6 +25,7 @@ let handle_request (s : state) : move =
       if is_none move_opt then InitialMove(0, 0) (*this shouldn't happen*)
       else InitialMove (get_some move_opt)
   | RobberRequest -> 
+    (*filter out the moves that involve stealing from themselves*)
     let move_opt = pick_random (valid_robber_moves (game_of_state s)) in
       if is_none move_opt then RobberMove (0, None) (*shouldn't happen*)
       else RobberMove (get_some move_opt)
