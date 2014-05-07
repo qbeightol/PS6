@@ -65,6 +65,16 @@ let list_replace_nth lst n e =
       | hd::tl ->  if n = i then e::tl else hd::(traverse tl n (i+1))
     in traverse lst n 0
 
+(******************************************************************************)
+(** {2 Hidden Utils}                                                          *)
+(******************************************************************************)
+
+let is_hidden = function
+  | Hidden _ -> true
+  | Reveal _ -> false
+
+let is_revealed cards = not (is_hidden cards)
+
 (*****************************************************************************)
 (* {4-tuple utils}                                                           *)
 (*****************************************************************************)
@@ -242,6 +252,12 @@ let c_buildable_cities (g: GameType.t) (c: color) : point list =
 
 
 (******************************************************************************)
+(** {game utils}                                                              *)
+(******************************************************************************)
+
+let set_blue g new_blue = {g with blue = new_blue}
+
+(******************************************************************************)
 (** {player utils}                                                            *)
 (******************************************************************************)
 
@@ -326,14 +342,8 @@ let to_player_tuple (plist: player list) : (pr * pr * pr * pr) =
     in 
     List.fold_right f plist (empty_pr, empty_pr, empty_pr, empty_pr) 
 
-let set_inventory pr new_inv =
-  { inventory = new_inv;
-    cards = pr.cards;
-    knights = pr.knights;
-    longestroad = pr.longestroad;
-    largestarmy = pr.largestarmy;
-    ratio = pr.ratio
-  }
+let set_inventory pr new_inv = {pr with inventory = new_inv}
+
 
 let set_color g c new_c = match c with
   | Blue -> {g with blue = new_c}
@@ -341,53 +351,17 @@ let set_color g c new_c = match c with
   | White -> {g with white = new_c}
   | Orange -> {g with orange = new_c}
 
-let set_cards pr new_cards =
-  { inventory = pr.inventory;
-    cards = new_cards;
-    knights = pr.knights;
-    longestroad = pr.longestroad;
-    largestarmy = pr.largestarmy;
-    ratio = pr.ratio
-  }
+let set_cards pr new_cards = {pr with cards = new_cards}
 
-let set_knights pr new_knights =
-  { inventory = pr.inventory;
-    cards = pr.cards;
-    knights = new_knights;
-    longestroad = pr.longestroad;
-    largestarmy = pr.largestarmy;
-    ratio = pr.ratio
-  }
+let set_knights pr new_knights = {pr with knights = new_knights}
 
-let set_longest_road pr new_lr =
-  { inventory = pr.inventory;
-    cards = pr.cards;
-    knights = pr.knights;
-    longestroad = new_lr;
-    largestarmy = pr.largestarmy;
-    ratio = pr.ratio
-  }
+let set_longest_road pr new_lr = {pr with longestroad = new_lr}
 
-let set_largestarmy pr new_la = 
-  { inventory = pr.inventory;
-    cards = pr.cards;
-    knights = pr.knights;
-    longestroad = pr.longestroad;
-    largestarmy = new_la;
-    ratio = pr.ratio
-  }
+let set_largestarmy pr new_la = {pr with largestarmy = new_la}
 
-let set_ratio pr new_ratio =
-  { inventory = pr.inventory;
-    cards = pr.cards;
-    knights = pr.knights;
-    longestroad = pr.longestroad;
-    largestarmy = pr.largestarmy;
-    ratio = new_ratio
-  }
+let set_ratio pr new_ratio = {pr with ratio = new_ratio}
 
-
-let resource_rec_to_tuple r = (r.bricks, r.wool, r.ore, r.grain, r.lumber) 
+let resource_rec_to_tuple r = (r.bricks, r.wool, r.ore, r.grain, r.lumber)
 
 (*returns c's inventory as a 5-tuple--i.e. an inventory*)
 let inv g c = 
@@ -629,3 +603,70 @@ let player g c =
     | Red -> g.red
     | Blue -> g.blue
     | Orange -> g.orange
+
+(*****************************************************************************)
+(* {card playing utils}                                                      *)
+(*****************************************************************************)
+let is_card_viable state color = function
+  | Knight -> true
+  | VictoryPoint -> false
+  | RoadBuilding ->  
+    List.length (c_buildable_roads (game_of_state state) color) > 0
+  | YearOfPlenty -> true
+  | Monopoly -> true
+
+
+let viable_card_plays s c hand = List.filter (is_card_viable s c) hand
+
+
+
+(*****************************************************************************)
+(* {trade utils}                                                             *)
+(*****************************************************************************)
+
+(*returns potential 1-1 trades of Wool/Ore/Grain for Lumber*)
+let lumber_trades my_c my_inv players =
+  let players_with_lumber =
+    let p (c, (i, _), _) = 
+      let temp = (map_cost2 (>=) i (single_resource_cost Lumber)) in
+        (c <> my_c) && (fold_5tuple (||) false temp)
+    in
+      List.filter p players
+  in 
+  let my_offers = 
+    let i_have r = 
+      fold_5tuple (&&) true (map_cost2 (>=) my_inv (single_resource_cost r))
+    in
+    let my_resources = List.filter i_have [Wool; Ore; Grain] in
+    let f r = (single_resource_cost r, single_resource_cost Lumber) in
+      List.map f my_resources
+  in
+  let f (color, _, _) = 
+    let f' acc (c1, c2) = (color, c1, c2)::acc in
+      List.fold_left f' [] my_offers
+  in
+    List.flatten (List.map f players_with_lumber)
+
+(*returns potential 1-1 trades of Wool/Ore/Grain for Bricks*)
+let brick_trades my_c my_inv players =
+  let players_with_bricks =
+    let p (c, (i, _), _) = 
+      let temp = (map_cost2 (>=) i (single_resource_cost Brick)) in
+        (c <> my_c) && (fold_5tuple (||) false temp)
+    in
+      List.filter p players
+  in 
+  let my_offers = 
+    let i_have r = 
+      fold_5tuple (&&) true (map_cost2 (>=) my_inv (single_resource_cost r))
+    in
+    let my_resources = List.filter i_have [Wool; Ore; Grain] in
+    let f r = (single_resource_cost r, single_resource_cost Lumber) in
+      List.map f my_resources
+  in
+  let f (color, _, _) = 
+    let f' acc (c1, c2) = (color, c1, c2)::acc in
+      List.fold_left f' [] my_offers
+  in
+    List.flatten (List.map f players_with_bricks)
+

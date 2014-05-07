@@ -13,8 +13,12 @@ module Bot = functor (S : Soul) -> struct
 let initialize () = ()
 
 let handle_request (s : state) : move =
-  let (b, p, t, n) = s in
-  let (c, r) = n in
+  let ((map, structs, deck, disc, robber), ps, t, n) = s in
+  let (my_c, r) = n in
+  let (_, (my_inv, my_cards), _) = 
+    let p (c, (_, cards), _) = c = my_c in
+      List.find p ps
+  in 
   match r with
   | InitialRequest -> 
     let move_opt = pick_random (valid_initial_moves (game_of_state s)) in
@@ -25,7 +29,7 @@ let handle_request (s : state) : move =
       if is_none move_opt then RobberMove (0, None) (*shouldn't happen*)
       else RobberMove (get_some move_opt)
   | DiscardRequest->
-    let (b, w, o, g, l) = inv (game_of_state s) c in
+    let (b, w, o, g, l) = my_inv in
     let mkd_inv = ((Brick, b), (Wool, w), (Ore, o), (Grain, g), (Lumber, l)) in
     let f acc (r, c) = (list_gen c r)::acc in
     let discard_list = List.flatten (fold_5tuple f [] mkd_inv) in
@@ -41,13 +45,108 @@ let handle_request (s : state) : move =
     let tot_cost = List.fold_left (map_cost2 (+)) (0,0,0,0,0) costs in
       DiscardMove tot_cost
   | TradeRequest -> 
-    (*ask to borrow alic's logic for checking whether a trade is valid*)
+    (*ask to borrow alice's logic for checking whether a trade is valid*)
     let move_opt = pick_random [true; false] in
       if is_none move_opt then TradeResponse false (*shouldn't happen*)
       else TradeResponse (get_some move_opt)
   | ActionRequest -> 
-    if is_none t.dicerolled then Action(RollDice) 
-    else failwith "not implemented"
+    let roll =is_none t.dicerolled in
+    let trade = not (t.tradesmade >= cNUM_TRADES_PER_TURN) in
+    let l_trades = lumber_trades my_c my_inv ps in
+    let l_trade_viable = (List.length l_trades) <> 0 in
+    let trd_l = trade && (t.tradesmade = 0) && l_trade_viable in
+    let b_trades = brick_trades my_c my_inv ps in
+    let b_trade_viable = (List.length b_trades) <> 0 in
+    let trd_b = trade && (t.tradesmade = 1) && b_trade_viable in
+    let viable_cards = 
+      if is_hidden my_cards then [] 
+      else viable_card_plays s my_c (reveal my_cards)
+    in
+    let play_c = (not t.cardplayed) && List.length viable_cards <> 0 in
+    let buildable_roads = c_buildable_roads (game_of_state s) my_c in
+    let pay_r = fold_5tuple (&&) true (map_cost2 (>=) my_inv cCOST_ROAD) in
+    let buy_r = List.length buildable_roads > 0 && pay_r in
+    let buildable_towns = c_buildable_towns (game_of_state s) my_c in
+    let pay_t = fold_5tuple (&&) true (map_cost2 (>=) my_inv cCOST_TOWN) in
+    let buy_t = List.length buildable_towns > 0 && pay_t in
+    let buildable_cities = c_buildable_cities (game_of_state s) my_c in
+    let pay_cty = fold_5tuple (&&) true (map_cost2 (>=) my_inv cCOST_CITY) in
+    let buy_cty = List.length buildable_cities > 0 && pay_cty in
+    let exists_card = 
+      match deck with
+      | Hidden n -> n > 0
+      | Reveal cs -> List.length cs > 0
+    in
+    let pay_crd = fold_5tuple (&&) true (map_cost2 (>=) my_inv cCOST_CARD) in
+    let buy_crd = exists_card && pay_crd in
+    match (roll,trd_l,trd_b,play_c,buy_t,buy_r,buy_cty,buy_crd) with
+    | (true, _, _, _, _, _, _, _) -> Action RollDice
+    | (_, true, _, _, _, _, _, _) -> 
+      (*try to trade lumber*)
+      let move_opt = pick_random (l_trades) in
+        if is_none move_opt then Action EndTurn (*shouldn't happen*)
+        else Action (DomesticTrade (get_some move_opt))
+    | (_, _, true, _, _, _, _, _) -> 
+      (*try to trade brick*)
+      let move_opt = pick_random (b_trades) in
+        if is_none move_opt then Action EndTurn (*shouldn't happen*)
+        else Action (DomesticTrade (get_some move_opt))
+    | (_, _, _, true, _, _, _, _) -> 
+      (*play a card*)
+      let card =
+        let card_opt = pick_random viable_cards in
+          get_some card_opt
+      in
+      begin
+        match card with
+        | Knight -> 
+          let move_opt = pick_random (valid_robber_moves (game_of_state s)) in
+            if is_none move_opt then 
+              (*shouldn't happen*)
+              Action (PlayCard (PlayKnight (0, None)))
+            else 
+              Action (PlayCard (PlayKnight (get_some move_opt)))
+        | VictoryPoint -> Action EndTurn (*shouldn't happen*)
+        | RoadBuilding -> 
+          let poss_roads = c_buildable_roads (game_of_state s) my_c in
+          let (l1, rem_poss_roads) = pick_one poss_roads in
+          let rd1 = (my_c, l1) in
+          let l2_opt = pick_random rem_poss_roads in
+          let rd2_opt = 
+            match l2_opt with 
+            | None -> None
+            | Some l2 -> Some (my_c, l2)
+          in
+            Action (PlayCard (PlayRoadBuilding (rd1, rd2_opt)))
+        | YearOfPlenty ->
+          let rs = [Brick; Wool; Ore; Grain; Lumber] in
+          let r1 = get_some (pick_random rs) in
+          let r2 = get_some (pick_random rs) in
+            Action (PlayCard (PlayYearOfPlenty (r1, Some r2)))
+        | Monopoly -> 
+          let rs = [Brick; Wool; Ore; Grain; Lumber] in
+          let r = get_some (pick_random rs) in
+            Action (PlayCard (PlayMonopoly r))
+      end
+    | (_, _, _, _, true, _, _, _) -> 
+      (*buy a town*)
+      let build = get_some (pick_random buildable_towns) in
+        Action (BuyBuild (BuildTown build))
+    | (_, _, _, _, _, true, _, _) -> 
+      (*buy a road*)
+      let build = get_some (pick_random buildable_roads) in
+        Action (BuyBuild (BuildRoad (my_c, build)))
+    | (_, _, _, _, _, _, true, _) -> 
+      (*buy a city*)
+      let build = get_some (pick_random buildable_cities) in
+        Action (BuyBuild (BuildCity build))
+    | (_, _, _, _, _, _, _, true) -> 
+      (*buy a card*)
+      Action (BuyBuild (BuildCard))
+    | _ ->
+      (*nothing left to do*)
+      Action EndTurn
+
 
 end
 
