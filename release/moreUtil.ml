@@ -717,6 +717,15 @@ let game_of_state ((map, structs, deck, discard, robber), plist, turn, next) =
 (* {trade utils}                                              *)
 (*****************************************************************************)
 
+let inv_resource g color resource =
+  let (b, w, o, g, l) = inv g color in
+    match resource with
+    | Brick -> b
+    | Wool -> w
+    | Ore -> o
+    | Lumber -> l
+    | Grain -> g
+
 let modify_resource g2 f resource inv =
     match resource with
     | Brick -> {inv with bricks = (f inv.bricks)}
