@@ -374,11 +374,57 @@ let playCard_helper g pc =
   			set_color gg g.turn.active (set_largestarmy player' true) else gg in
   		robbing g2 (p, c_opt)
 
-  		
-  | PlayRoadBuilding (rd, rd_o) -> failwith "not implemented" (* build road, VPs, trophy, update cards*)
-  | PlayYearOfPlenty (r, r_o) -> failwith "not implemented" (* update player's inventory and cards *)
-  | PlayMonopoly r -> failwith "not implemented" (* update all inventory, update player's cards *)
+  | PlayRoadBuilding (rd, rd_o) -> (* build road, trophy, update cards*)
+  		let crds = reveal g.board.deck in
+  		let rmv = list_memremove (fun x -> x = RoadBuilding) crds in
+  		let g1 = set_color g' g.turn.active (set_cards player' (wrap_reveal rmv)) in
+  		let g2 = buyBuild_helper g1 (BuildRoad rd) in
+  		begin
+	  		match rd_o with
+	  		| None -> g2
+	  		| Some r2 -> buyBuild_helper g2 (BuildRoad r2) 
+			end
 
+  | PlayYearOfPlenty (r, r_o) -> (* update player's inventory and cards *)
+  		let crds = reveal g.board.deck in
+  		let rmv = list_memremove (fun x -> x = YearOfPlenty) crds in
+  		let g'' = set_color g' g.turn.active (set_cards player' (wrap_reveal rmv)) in
+  		let new_res = modify_resource g' succ r player'.inventory in
+  		let g1 = set_color g'' g.turn.active (set_inventory player' new_res) in
+  		begin
+  			match r_o with 
+  			| None -> g1
+  			| Some re -> 
+  					let new_res2 = modify_resource g' succ re player'.inventory in
+  					set_color g1 g.turn.active (set_inventory player' new_res2)
+  		end
+
+  | PlayMonopoly r -> (* update all inventory, update player's cards *)
+			let crds = reveal g.board.deck in
+  		let rmv = list_memremove (fun x -> x = Monopoly) crds in
+  		let g1 = set_color g' g.turn.active (set_cards player' (wrap_reveal rmv)) in
+
+  		let remove_all_res g c r = 
+  			let new_res = modify_resource g' (fun x -> 0) r player'.inventory in
+  			(set_color g c (set_inventory player' new_res), inv_resource g c r) in 
+
+  		let total_steal acc g = 
+	  		let gb = if Blue <> g.turn.active then
+	  			(acc + snd (remove_all_res g1 Blue r),
+	  			fst (remove_all_res g1 Blue r) ) else (acc, g1) in 
+	  		let gw = if White <> g.turn.active then 
+	  			(acc + snd (remove_all_res (snd gb) Blue r),
+	  			fst (remove_all_res (snd gb) White r) ) else gb in
+	  		let gr = if Red <> g.turn.active then
+	  			(acc + snd (remove_all_res (snd gw) Blue r),
+	  			fst (remove_all_res (snd gw) Red r) ) else gw in
+	  		if Orange <> g.turn.active then
+	  			(acc + snd (remove_all_res (snd gr) Blue r),
+	  			fst (remove_all_res (snd gr) Orange r) ) else gr in 
+			
+			let i, gm = total_steal 0 g1 in 
+			let new_res = modify_resource g' (fun x -> x + i) r player'.inventory in
+  		set_color gm g.turn.active (set_inventory player' new_res)
 
 let is_winner g updated_game = let (bl, re, ora, wh) = calc_vp g in 
 	if bl >= cWIN_CONDITION then (Some Blue, updated_game)
