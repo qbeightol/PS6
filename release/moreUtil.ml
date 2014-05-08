@@ -8,6 +8,17 @@ them (In the end, most of these functions will probably end up in util or
 gameHelper).*)
 
 (******************************************************************************)
+(** {2 print utils}                                                           *)
+(******************************************************************************)
+
+let print_color c = 
+  match c with
+  | Blue -> print_endline "Blue"
+  | Red -> print_endline "Red"
+  | Orange -> print_endline "Orange"
+  | White -> print_endline "White"
+
+(******************************************************************************)
 (** {2 Option utils}                                                          *)
 (******************************************************************************)
 

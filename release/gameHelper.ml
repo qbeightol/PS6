@@ -27,7 +27,8 @@ let validmove g m =
 			match m with
 			| DiscardMove c ->
 				begin
-          let tot_act_inv = sum_cost (inv g g.turn.active) in
+          let (discarding_color, _) = g.next in
+          let tot_act_inv = sum_cost (inv g discarding_color) in
 					let tot_discarded = sum_cost c in
             (tot_act_inv/2 = tot_discarded)
 			  end
@@ -96,8 +97,11 @@ let validmove g m =
 
 			    (not g.turn.cardplayed) && (match pc with 
 			  		| PlayKnight r -> true
-			  		| PlayRoadBuilding (a, x) -> not g.turn.cardplayed 
-			  		| _ -> (g.turn.dicerolled <> None))
+            | PlayRoadBuilding ((_,l), None) -> List.mem l (c_buildable_roads g g.turn.active)
+			  		| PlayRoadBuilding ((_,l1), Some (_,l2)) -> 
+              (List.mem l1 (c_buildable_roads g g.turn.active))
+              &&(List.mem l2 (c_buildable_roads g g.turn.active))
+			  		| _ -> g.turn.dicerolled <> None)
 			    | EndTurn -> (g.turn.dicerolled <> None)
 			  end
 			| _ -> false
@@ -197,7 +201,8 @@ let initial_helper g (pt1, pt2) =
 (*  Subtracting c from the current player *)
 let discard_helper g (b, w, o, gr, l) = 
   let new_g = 
-	match g.turn.active with 
+    let (discarding_color,_) = g.next in
+	match discarding_color with 
 	| Blue -> 
 		{ g with blue = {g.blue with inventory = { 
 					bricks = (g.blue.inventory.bricks - b);
