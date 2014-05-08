@@ -50,6 +50,7 @@ let init_game () = game_of_state (gen_initial_state())
 (*cleaned up version of handle_move. Old code can be found below*)
 let handle_move g m =
   let move = 
+    print_endline (string_of_bool (validmove g m));
     if validmove g m then m
     else 
       let (c, req) = g.next in
@@ -107,13 +108,15 @@ let handle_move g m =
         | EndTurn ->
           let next_p = next_turn g.turn.active in
           let next_t = new_turn next_p in 
-            { board = g.board;
+          let gm = { board = g.board;
               blue = g.blue;
               red = g.red;
               orange = g.orange;
               white = g.white;
               turn = next_t; 
-              next = (next_p, ActionRequest)}
+              next = (next_p, ActionRequest)} in 
+          end_helper gm g.turn.active
+            
       end
   in 
   print_update g.turn.active m (state_of_game updated_game);
