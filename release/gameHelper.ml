@@ -13,7 +13,7 @@ let validmove g m =
 	| InitialRequest -> 
 		begin
 			match m with 
-			| InitialMove l -> List.exists ((=) l) (valid_initial_moves g)
+			| InitialMove l -> List.mem l (valid_initial_moves g)
 			| _ -> false
 		end
 	| RobberRequest ->
@@ -27,20 +27,9 @@ let validmove g m =
 			match m with
 			| DiscardMove c ->
 				begin
-					let c1 = sum_cost c in
-					match g.turn.active with
-					| Blue -> ((g.blue.inventory.bricks + g.blue.inventory.wool + 
-							g.blue.inventory.lumber + g.blue.inventory.ore + 
-							g.blue.inventory.grain)/2 = c1) && (c1 > 3)
-					| Red -> ((g.red.inventory.bricks + g.red.inventory.wool + 
-							g.red.inventory.lumber + g.red.inventory.ore + 
-							g.red.inventory.grain)/2 = c1) && (c1 > 3)
-					| Orange -> ((g.orange.inventory.bricks + g.orange.inventory.wool + 
-							g.orange.inventory.lumber + g.orange.inventory.ore + 
-							g.orange.inventory.grain)/2 = c1) && (c1 > 3)
-					| White -> ((g.white.inventory.bricks + g.white.inventory.wool + 
-							g.white.inventory.lumber + g.white.inventory.ore + 
-							g.white.inventory.grain)/2 = c1) && (c1 > 3)
+          let tot_act_inv = sum_cost (inv g g.turn.active) in
+					let tot_discarded = sum_cost c in
+            (tot_act_inv/2 = tot_discarded)
 			  end
 			| _ -> false
 		end
@@ -207,15 +196,10 @@ let initial_helper g (pt1, pt2) =
 
 (*  Subtracting c from the current player *)
 let discard_helper g (b, w, o, gr, l) = 
-  let next = 
-    match discard_player g with
-    | None -> (g.turn.active, RobberRequest)
-    | Some color -> (color, DiscardRequest)
-  in
+  let new_g = 
 	match g.turn.active with 
 	| Blue -> 
-		{ g with next = next;
-			blue = {g.blue with inventory = { 
+		{ g with blue = {g.blue with inventory = { 
 					bricks = (g.blue.inventory.bricks - b);
 					wool = (g.blue.inventory.wool - w);
 					ore = (g.blue.inventory.ore - o);
@@ -223,8 +207,7 @@ let discard_helper g (b, w, o, gr, l) =
 					lumber = (g.blue.inventory.lumber - l)
 				} } }
 	| White ->
-		{ g with next = next;
-			white = {g.white with inventory = { 
+		{ g with white = {g.white with inventory = { 
 					bricks = (g.white.inventory.bricks - b);
 					wool = (g.white.inventory.wool - w);
 					ore = (g.white.inventory.ore - o);
@@ -232,8 +215,7 @@ let discard_helper g (b, w, o, gr, l) =
 					lumber = (g.white.inventory.lumber - l)
 				} } }
 	| Red ->
-		{ g with next = next;
-			red = {g.red with inventory = { 
+		{ g with red = {g.red with inventory = { 
 					bricks = (g.red.inventory.bricks - b);
 					wool = (g.red.inventory.wool - w);
 					ore = (g.red.inventory.ore - o);
@@ -241,14 +223,20 @@ let discard_helper g (b, w, o, gr, l) =
 					lumber = (g.red.inventory.lumber - l)
 				} } }
 	| Orange ->
-		{ g with next = next;
-			orange = {g.orange with inventory = { 
+		{ g with orange = {g.orange with inventory = { 
 					bricks = (g.orange.inventory.bricks - b);
 					wool = (g.orange.inventory.wool - w);
 					ore = (g.orange.inventory.ore - o);
 					grain = (g.orange.inventory.grain - gr);
 					lumber = (g.orange.inventory.lumber - l)
 				} } }
+  in
+  let next = 
+    match discard_player new_g with
+    | None -> (g.turn.active, RobberRequest)
+    | Some color -> (color, DiscardRequest)
+  in
+  {new_g with next = next}
 
 
 (*If true, then conduct the trade (and don't conduct
@@ -289,14 +277,12 @@ let maritime_helper g (r_sold, r_bought) =
 		| Grain -> gr
 		| Lumber -> l in
 	let mar g2 act_color r_sold r_bought nsold = 
-	  let a_inv = inv g act_color in
-	  let id_inv = inv g act_color in
-	  let new_a_inv = modify_resource g (fun x -> x - nsold) r_sold (to_resource_rec a_inv) in
-	  let new_id_inv = modify_resource g succ r_bought (to_resource_rec id_inv) in
-	  let new_a = set_inventory (player g act_color) new_a_inv in
-	  let new_id = set_inventory (player g act_color) new_id_inv in
-	  let g' = set_color g act_color new_a in 
-		set_color g' act_color new_id in
+	  let a_inv = inv g2 act_color in
+	  let new_a_inv = modify_resource g2 (fun x -> x - nsold) r_sold (to_resource_rec a_inv) in
+    let new_a_inv2 = modify_resource g2 succ r_bought (new_a_inv) in
+	  let new_a = set_inventory (player g2 act_color) new_a_inv2 in
+      set_color g2 act_color new_a
+    in
 
 	let gm = mar g g.turn.active r_sold r_bought ns in
 	{gm with next = (g.turn.active, ActionRequest)}
@@ -312,19 +298,12 @@ let domestic_helper g (other_player, active_player_cost, other_player_cost) =
 
 (* buy build, update victory points and trophies *)
 let buyBuild_helper g b =
-(*   let (br, w, o, gr, l) = cost_of_build b in *)
-  let (br, w, o, gr, l) = cost_of_build b in
-	let b_road g2 act_color res nres = 
-	  let a_inv = inv g act_color in
-	  let new_a_inv = modify_resource g (fun x -> x - nres) res (to_resource_rec a_inv) in
-	  let new_a = set_inventory (player g act_color) new_a_inv in
-	  set_color g act_color new_a in 
-	let gb = b_road g g.turn.active Brick br in 
-	let gw = b_road gb g.turn.active Wool w in 
-	let go = b_road gw g.turn.active Ore o in 
-	let gl = b_road go g.turn.active Lumber l in 
-	let gg = b_road gl g.turn.active Grain gr in 
-	let g' = { gg with next = (g.turn.active, ActionRequest)} in
+  let a_color = g.turn.active in
+  let a_inv = inv g a_color in
+  let new_a_inv = map_cost2 (-) a_inv (cost_of_build b) in
+  let new_a = set_inventory (player g a_color) (to_resource_rec new_a_inv) in
+  let new_g = set_color g a_color new_a in
+  let g' = {new_g with next = (g.turn.active, ActionRequest)} in
 
  	let player' = match g.turn.active with 
 		| Blue -> g.blue
@@ -336,15 +315,16 @@ let buyBuild_helper g b =
   | BuildRoad (c, (p1, p2)) -> (* build the road on board
   		check length of longest road, award trophy and 2 VPs if necessary, check if winner *)
 		begin 
+      (*fix so that the we remove the old longest road trophy*)
 			let g'' = build_road g' c (p1, p2) in
 			let rds = g''.board.structures.roads in
 			let inters = g''.board.structures.settlements in 
 			let length = longest_road c rds inters in
 			let max1 = max (max (longest_road Blue rds inters) (longest_road White rds inters)) 
 						(max (longest_road Red rds inters) (longest_road Orange rds inters)) in
-			if (length >  max1) && (length <> max1) && (length >= cMIN_LONGEST_ROAD) 
-				&& (player'.longestroad = false) then 
-			set_color g'' c (set_longest_road player' true) else g''
+			if (length >  max1) && (length <> max1) && (length >= cMIN_LONGEST_ROAD) then
+        update_longest_road g'' c 
+      else g''
 		end 
   | BuildTown pt -> build_town g' g.turn.active pt
   | BuildCity pt -> build_city g' g.turn.active pt 
