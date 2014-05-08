@@ -46,6 +46,12 @@ let validmove g m =
 		end
 	| ActionRequest -> 
 		begin
+			let player = 
+  	  	match g.turn.active with
+    	  | Blue -> g.blue
+    	  | White -> g.white
+    	  | Red -> g.red
+    	  | Orange -> g.orange in
 			match m with
 			| Action a ->
 			  begin
@@ -53,12 +59,6 @@ let validmove g m =
 			    | RollDice -> (g.turn.dicerolled = None)
 			    | MaritimeTrade (sold, bought) ->
 			    	begin 
-			    	  let player = 
-			    	  	match g.turn.active with
-				    	  | Blue -> g.blue
-				    	  | White -> g.white
-				    	  | Red -> g.red
-				    	  | Orange -> g.orange in
 			    		let ratio, owns = 
 			    			match sold with
 				    		| Wool -> player.ratio.wool, player.inventory.wool
@@ -72,6 +72,12 @@ let validmove g m =
 			    		if g.turn.tradesmade >= cNUM_TRADES_PER_TURN then false else
 			    		valid_trade_helper g (id, cost1, cost2)
 			    | BuyBuild b -> 
+			    	let x = match g.board.deck with 
+			    		| Hidden i -> i 
+			    		| _ -> 0 in
+			    	if x = 0 then false else 
+
+
 			    	begin
 			        let cost1 = (cost_of_build b) in
 			        let rec_to_tuple r = (r.bricks, r.wool, r.ore, r.grain, r.lumber) in
@@ -92,12 +98,16 @@ let validmove g m =
 						end
 			    (* need to also check that player has card in hand *)
 			    | PlayCard pc -> 
-			    		(* let crd = get_reveal player.cards in (List.mem pc crd) && ---why doesn't it work...*)
-
-			    (not g.turn.cardplayed) && (match pc with 
-			  		| PlayKnight r -> true
-			  		| PlayRoadBuilding (a, x) -> not g.turn.cardplayed 
-			  		| _ -> (g.turn.dicerolled <> None))
+			    		let crd = get_reveal player.cards in 
+			    		let indeck = match pc with 
+				    		|	PlayKnight _ -> (List.mem Knight crd)
+	              | PlayRoadBuilding _ -> (List.mem RoadBuilding crd)
+	              | PlayYearOfPlenty _ -> (List.mem YearOfPlenty crd)
+	              | PlayMonopoly _ -> (List.mem Monopoly crd) in
+			    		indeck &&
+					    (not g.turn.cardplayed) && (match pc with 
+					  		| PlayKnight r -> true
+					  		| _ -> (g.turn.dicerolled <> None))
 			    | EndTurn -> (g.turn.dicerolled <> None)
 			  end
 			| _ -> false
@@ -305,12 +315,6 @@ let buyBuild_helper g b =
   let new_g = set_color g a_color new_a in
   let g' = {new_g with next = (g.turn.active, ActionRequest)} in
 
- 	let player' = match g.turn.active with 
-		| Blue -> g.blue
-		| White -> g.white
-		| Red -> g.red
-		| Orange -> g.orange in
-
   match b with
   | BuildRoad (c, (p1, p2)) -> (* build the road on board
   		check length of longest road, award trophy and 2 VPs if necessary, check if winner *)
@@ -329,9 +333,9 @@ let buyBuild_helper g b =
   | BuildTown pt -> build_town g' g.turn.active pt
   | BuildCity pt -> build_city g' g.turn.active pt 
   | BuildCard -> (* add to active player's cards (random card), remove card from board deck *)
-  		let rancrd = get_some (pick_random (get_reveal g.board.deck)) in 
-  		set_color g' g.turn.active (set_cards player' (append_card g.board.deck rancrd))
-
+  		let card, newdeck = pick_one (get_reveal g.board.deck) in
+  		let gdeck = {g with board = {g.board with deck = Reveal newdeck}} in
+  		{gdeck with turn = {g.turn with cardsbought = (append_card g.turn.cardsbought card)}}
 
 (* play card, update trophies *)
 let playCard_helper g pc =
@@ -412,6 +416,17 @@ let is_winner g updated_game = let (bl, re, ora, wh) = calc_vp g in
 	else if ora >= cWIN_CONDITION then (Some Orange, updated_game)
 	else if wh >= cWIN_CONDITION then (Some White, updated_game)
 	else (None, updated_game)
+
+let end_helper g c = 
+	let player = match c with 
+		| Blue -> g.blue
+		| White -> g.white
+		| Red -> g.red
+		| Orange -> g.orange in
+	let curcards = reveal player.cards in
+	let addcards = reveal g.turn.cardsbought in
+	let newdeck = curcards@addcards in
+	set_color g g.turn.active (set_cards player (wrap_reveal newdeck))
 
 let present_player_info active_color player_color player =
   { inventory = player.inventory;

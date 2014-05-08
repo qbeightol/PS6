@@ -107,13 +107,15 @@ let handle_move g m =
         | EndTurn ->
           let next_p = next_turn g.turn.active in
           let next_t = new_turn next_p in 
-            { board = g.board;
+          let gm = { board = g.board;
               blue = g.blue;
               red = g.red;
               orange = g.orange;
               white = g.white;
               turn = next_t; 
-              next = (next_p, ActionRequest)}
+              next = (next_p, ActionRequest)} in 
+          end_helper gm g.turn.active
+            
       end
   in 
   print_update g.turn.active m (state_of_game updated_game);
